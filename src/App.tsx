@@ -94,7 +94,7 @@ export default function App() {
         </nav>
         <div className="topright">
           <span className="top-hint">开源 · 无登录 · 无后端</span>
-          <span className="top-hint dim" title="推送到 GitHub 后请把这里替换成仓库地址">GitHub ↗（待填仓库地址）</span>
+          <a className="top-hint dim" href="https://github.com/Dxdnsxsty/DSVisualization" target="_blank" rel="noreferrer" title="在 GitHub 查看源码">GitHub ↗</a>
         </div>
       </header>
 
