@@ -1,0 +1,145 @@
+import type { AlgorithmMeta, EdgeState, NodeState, SceneEdge, TraceStep } from '../../engine/types';
+import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
+
+/** 固定示例图（无向）：A-B、A-C、B-D、B-E、C-F、E-F */
+const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
+const POS: { x: number; y: number }[] = [
+  { x: 0.5, y: 0.04 },
+  { x: 0.16, y: 0.34 },
+  { x: 0.84, y: 0.34 },
+  { x: 0.08, y: 0.72 },
+  { x: 0.46, y: 0.72 },
+  { x: 0.86, y: 0.95 },
+];
+const ADJ: [number, number][] = [
+  [0, 1],
+  [0, 2],
+  [1, 3],
+  [1, 4],
+  [2, 5],
+  [4, 5],
+];
+
+export const dfsGraph: AlgorithmMeta = {
+  slug: 'graph/dfs',
+  title: '图 · 深度优先遍历',
+  chapter: '第 8 章 图',
+  category: 'ch8',
+  summary: '沿一条路走到底，走不通再回溯。',
+  complexity: { time: 'O(n+e)', space: 'O(n)', extra: '邻接矩阵为 O(n²)' },
+  difficulty: '进阶',
+  inputHint: '输入顶点个数（3–6），按示例无向图演示从 A 出发的深度优先遍历。',
+  defaultInput: [6],
+  input: { min: 3, max: 6, minLen: 1, maxLen: 1 },
+  code: {
+    cpp: [
+      { text: 'void DFS(AMGraph G, int v) {' },
+      { text: '  printf("%c ", G.vex[v]);', anchor: 'visit' },
+      { text: '  visited[v] = 1;', anchor: 'mark' },
+      { text: '  for (int w = 0; w < G.vexnum; w++)', anchor: 'loop' },
+      { text: '    if (G.arcs[v][w] && !visited[w])', anchor: 'check' },
+      { text: '      DFS(G, w);', anchor: 'recurse' },
+      { text: '}', anchor: 'ret' },
+    ],
+    python: [
+      { text: 'def dfs(g, v, visited):' },
+      { text: '    print(g.vex[v])', anchor: 'visit' },
+      { text: '    visited[v] = True', anchor: 'mark' },
+      { text: '    for w in range(g.n):', anchor: 'loop' },
+      { text: '        if g.arcs[v][w] and not visited[w]:', anchor: 'check' },
+      { text: '            dfs(g, w, visited)', anchor: 'recurse' },
+      { text: '    # 本次调用返回', anchor: 'ret' },
+    ],
+  },
+  doc: [
+    {
+      heading: '核心思想',
+      body: '深度优先遍历类似走迷宫：选定一个未访问的邻接点就一直走下去，直到无路可走再回溯到上一个分叉点。实现上依赖一个 visited 数组记录访问状态，以及递归栈保存来路。',
+      points: [
+        '邻接矩阵需要扫描整行 n 个位置，复杂度 O(n²)；邻接表只扫实际边，O(n+e)',
+        '遍历序列不唯一：取决于邻接点的访问次序',
+        '非连通图需要在外层再套一层循环，对每个未访问顶点各发起一次 DFS',
+      ],
+    },
+    {
+      heading: '与广度优先的对比',
+      body: 'DFS 用栈（递归），一条路走到底，适合判环、求连通分量、拓扑排序；BFS 用队列，逐层扩散，适合求最短路径（无权图）。两者都需要 visited 数组，标记时机不同会得到不同结果。',
+    },
+  ],
+  quiz: [
+    { q: '深度优先遍历通常借助什么实现？', options: ['队列', '栈（或递归）', '优先队列', '哈希表'], answer: 1, explain: 'DFS 的"后进先出"特性与栈一致，递归调用本身就是栈。' },
+    { q: 'visited[v] 应该在什么时候置为 1？', options: ['访问完所有邻接点之后', '一进入该顶点就置 1', '回溯时置 1', '不需要标记'], answer: 1, explain: '进入即标记，否则遇到环会重复访问导致死循环。' },
+    { q: '对示例图从 A 出发，第二个被访问的顶点是？', options: ['B', 'C', 'D', 'F'], answer: 0, explain: '按邻接点从小到大的次序，A 先走到 B，再深入 B 的邻接点 D。' },
+  ],
+  generate: (input) => {
+    const n = Math.min(Math.max(input[0] || 6, 3), 6);
+    const ids = VEX.slice(0, n).map((v) => `v${v}`);
+    const baseEdges: SceneEdge[] = ADJ.filter(([a, b]) => a < n && b < n).map(([a, b]) =>
+      edge(ids[a], ids[b], undefined, 'default', false),
+    );
+    const steps: TraceStep[] = [];
+    let k = 0;
+    const visited: boolean[] = Array(n).fill(false);
+    const states: Record<string, NodeState> = {};
+    const eStates: Record<string, EdgeState> = {};
+
+    const push = (anchor: string, phase: string, caption: string, stack: string[]) => {
+      const nodes = VEX.slice(0, n).map((v, i) =>
+        nodeAt(ids[i], v, POS[i].x, POS[i].y, states[ids[i]] ?? 'default'),
+      );
+      const edges = baseEdges.map((e) => {
+        const key = `${e.from}>${e.to}`;
+        const rev = `${e.to}>${e.from}`;
+        return { ...e, state: eStates[key] ?? eStates[rev] ?? ('default' as EdgeState) };
+      });
+      steps.push(
+        makeStep(
+          k++,
+          anchor,
+          phase,
+          graphScene(nodes, edges, `从 A 出发，已访问 ${visited.filter(Boolean).length} / ${n}`),
+          {
+            当前顶点: stack.length ? stack[stack.length - 1] : '—',
+            已访问: visited.map((b, i) => (b ? VEX[i] : '')).filter(Boolean).join('') || '空',
+            递归深度: stack.length,
+          },
+          caption,
+          stack.length ? [...stack] : undefined,
+        ),
+      );
+    };
+
+    const dfs = (v: number, stack: string[]): void => {
+      stack.push(`DFS(${VEX[v]})`);
+      visited[v] = true;
+      states[ids[v]] = 'found';
+      push('visit', '访问顶点', `进入 ${VEX[v]}，把它加入遍历序列。`, stack);
+      push('mark', '标记已访问', `visited[${VEX[v]}] = 1，之后不会再进入它。`, stack);
+
+      for (let w = 0; w < n; w++) {
+        const linked = ADJ.some(([a, b]) => (a === v && b === w) || (a === w && b === v));
+        if (!linked) continue;
+        const key = `${ids[v]}>${ids[w]}`;
+        const rev = `${ids[w]}>${ids[v]}`;
+        eStates[key] = 'active';
+        eStates[rev] = 'active';
+        push('loop', '考察邻接点', `检查 ${VEX[v]} 的邻接点 ${VEX[w]}。`, stack);
+        if (visited[w]) {
+          eStates[key] = 'reject';
+          eStates[rev] = 'reject';
+          push('check', '跳过已访问', `${VEX[w]} 已访问过，跳过它，继续看下一个邻接点。`, stack);
+        } else {
+          eStates[key] = 'tree';
+          eStates[rev] = 'tree';
+          push('recurse', '递归深入', `${VEX[w]} 未访问，从它继续深度优先，压栈进入。`, stack);
+          dfs(w, stack);
+        }
+      }
+      stack.pop();
+      push('ret', '回溯', `${VEX[v]} 的所有邻接点都处理完，本次调用返回上一层。`, stack);
+    };
+
+    dfs(0, []);
+    return steps;
+  },
+};
