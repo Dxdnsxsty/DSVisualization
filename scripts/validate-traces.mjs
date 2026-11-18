@@ -16,6 +16,7 @@ import { checkPlayerRoute } from './player-route.mjs';
 import { checkListPointers } from './list-pointers.mjs';
 import { checkGraphTraversal } from './graph-traversal.mjs';
 import { checkKmpNext } from './kmp-next.mjs';
+import { checkHashTables } from './hash-tables.mjs';
 
 const result = await build({
   entryPoints: ['src/algorithms/registry.ts'],
@@ -55,6 +56,7 @@ try {
   errors.push(...checkStackQueue(mod.algorithms), ...await checkPlayerRoute());
   errors.push(...checkListPointers(mod.algorithms), ...checkGraphTraversal(mod.algorithms));
   errors.push(...checkKmpNext(mod.algorithms));
+  errors.push(...checkHashTables(mod.algorithms));
 
   if (errors.length > 0) {
     console.error('\n校验未通过：');

@@ -21,7 +21,7 @@ export const hashChain: AlgorithmMeta = {
       { text: '// 表长 7，H(key) = key % 7，桶内用单链表存同义词', anchor: 'init' },
       { text: 'Node *H[7] = {NULL};' },
       { text: 'void Insert(int key) {' },
-      { text: '  int h = key % 7;', anchor: 'hash' },
+      { text: '  int h = (key % 7 + 7) % 7;', anchor: 'hash' },
       { text: '  Node *s = new Node{key, NULL};' },
       { text: '  if (H[h] == NULL) { H[h] = s; return; }', anchor: 'insert' },
       { text: '  Node *p = H[h];' },
@@ -29,11 +29,11 @@ export const hashChain: AlgorithmMeta = {
       { text: '  p->next = s;  // 尾插，保持插入顺序', anchor: 'append' },
       { text: '}' },
       { text: 'Node *Search(int key) {' },
-      { text: '  int h = key % 7;', anchor: 'shash' },
+      { text: '  int h = (key % 7 + 7) % 7;', anchor: 'shash' },
       { text: '  for (Node *p = H[h]; p != NULL; p = p->next) {', anchor: 'scmp' },
       { text: '    if (p->key == key) return p;', anchor: 'found' },
       { text: '  }' },
-      { text: '  return NULL;' },
+      { text: '  return NULL;', anchor: 'fail' },
       { text: '}' },
     ],
     python: [
@@ -52,7 +52,7 @@ export const hashChain: AlgorithmMeta = {
       { text: '    for v in H[h]:', anchor: 'scmp' },
       { text: '        if v == key:', anchor: 'found' },
       { text: '            return v' },
-      { text: '    return None' },
+      { text: '    return None', anchor: 'fail' },
     ],
   },
   doc: [
@@ -82,7 +82,7 @@ export const hashChain: AlgorithmMeta = {
   ],
   generate: (input) => {
     const raw = input.filter((v) => Number.isFinite(v));
-    const list = raw.length >= 2 ? raw.slice(0, 9) : DEFAULT;
+    const list = raw.length >= 2 ? raw.slice(0, 14) : DEFAULT;
     const target = list[list.length - 1];
     const keys = list.slice(0, -1).map((v) => Math.trunc(v));
     const table: number[][] = Array.from({ length: M }, () => []);
@@ -138,7 +138,7 @@ export const hashChain: AlgorithmMeta = {
       compares = 0;
       bucketStates = { [h]: 'active' };
       auxStates = {};
-      push('hash', '计算散列地址', `插入 ${key}：${key} % ${M} = ${h}，定位到桶 ${h}。`);
+      push('hash', '计算散列地址', `插入 ${key}：对 ${M} 取非负余数得到 ${h}，定位到桶 ${h}。`);
 
       const chain = table[h];
       if (chain.length === 0) {
@@ -158,7 +158,7 @@ export const hashChain: AlgorithmMeta = {
         push(
           'cmp',
           '沿链走向链尾',
-          `桶 ${h} 中已有 ${chain.length} 个同义词，${idx === 0 ? '从表头开始' : '沿链走到下一个结点'}：当前是 ${chain[idx]}，它不是链尾，继续往后走。`,
+          `桶 ${h} 中已有 ${chain.length} 个同义词，当前结点是 ${chain[idx]}。${idx === chain.length - 1 ? '已到链尾。' : '继续沿链往后走。'}`,
         );
       }
 
@@ -173,16 +173,15 @@ export const hashChain: AlgorithmMeta = {
       );
     }
 
-    const okTarget = keys.includes(Math.trunc(target)) ? Math.trunc(target) : keys[keys.length - 1];
-    curKey = okTarget;
-    h = ((okTarget % M) + M) % M;
+    curKey = target;
+    h = ((target % M) + M) % M;
     compares = 0;
     bucketStates = { [h]: 'active' };
     auxStates = {};
     push(
       'shash',
       '计算散列地址',
-      `查找 ${okTarget}：${okTarget} % ${M} = ${h}，只需在桶 ${h} 的链表中查找。`,
+      `查找 ${target}：对 ${M} 取非负余数得到 ${h}，只需在桶 ${h} 的链表中查找。`,
     );
 
     const chain = table[h];
@@ -191,23 +190,23 @@ export const hashChain: AlgorithmMeta = {
       compares += 1;
       const next: Record<string, NodeState> = {};
       for (let t = 0; t < idx; t++) next[`c${t}`] = 'visited';
-      if (chain[idx] === okTarget) {
+      if (chain[idx] === target) {
         next[`c${idx}`] = 'found';
         auxStates = next;
         bucketStates = { [h]: 'visited' };
-        push('found', '查找成功', `第 ${compares} 次比较：结点值 ${chain[idx]} 等于目标 ${okTarget}，查找成功。`);
+        push('found', '查找成功', `第 ${compares} 次比较：结点值 ${chain[idx]} 等于目标 ${target}，查找成功。`);
         hit = idx;
         break;
       }
       next[`c${idx}`] = 'compare';
       auxStates = next;
-      push('scmp', '比较不相等', `第 ${compares} 次比较：结点值 ${chain[idx]} ≠ ${okTarget}，沿链继续下一个。`);
+      push('scmp', '比较不相等', `第 ${compares} 次比较：结点值 ${chain[idx]} ≠ ${target}，沿链继续下一个。`);
     }
 
     if (hit < 0) {
       auxStates = {};
       bucketStates = { [h]: 'delete' };
-      push('found', '查找失败', `走到链尾的 ∧ 仍未命中，说明 ${okTarget} 不在表中。`);
+      push('fail', '查找失败', `走到链尾的 ∧ 仍未命中，说明 ${target} 不在表中。`);
     }
     return steps;
   },
