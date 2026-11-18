@@ -1,118 +1,176 @@
-import type { AlgorithmMeta, NodeState, ScenePointer, TraceStep } from '../../engine/types';
+import type { AlgorithmMeta, CodeLine, ListLink, ScenePointer, TraceStep } from '../../engine/types';
 import { listScene, makeStep, node } from '../../engine/scene';
 
-export const linkHeadInsert: AlgorithmMeta = {
-  slug: 'list/link-head-node',
-  title: '单链表 · 头插法建立',
-  chapter: '第 2 章 线性表',
-  category: 'ch2',
-  summary: '逐个把新结点插到头指针之后，观察指针修改顺序。',
-  complexity: { time: 'O(n)', space: 'O(n)', extra: '每个结点插入 O(1)' },
-  difficulty: '入门',
-  inputHint: '输入若干整数，按输入顺序依次执行头插法；观察最终链表顺序与输入相反。',
-  defaultInput: [10, 20, 30, 40],
-  input: { min: -999, max: 999, minLen: 1, maxLen: 8 },
-  code: {
-    cpp: [
-      { text: '#include <iostream>' },
-      { text: 'struct LNode { int data; LNode *next; };' },
-      { text: 'LNode* CreateHead(int A[], int n) {' },
-      { text: '  LNode *head = NULL;', anchor: 'init' },
-      { text: '  for (int i = 0; i < n; i++) {' },
-      { text: '    LNode *s = new LNode;', anchor: 'alloc' },
-      { text: '    s->data = A[i];' },
-      { text: '    s->next = head;', anchor: 'link' },
-      { text: '    head = s;', anchor: 'head' },
-      { text: '  }' },
-      { text: '  return head;', anchor: 'done' },
-      { text: '}' },
-      { text: 'int main() {' },
-      { text: '  int A[] = {10, 20, 30, 40};' },
-      { text: '  for (LNode *p = CreateHead(A, 4); p; p = p->next)' },
-      { text: '    std::cout << p->data << " ";' },
-      { text: '  return 0;' },
-      { text: '}' },
+const DEFAULT = [10, 20, 30, 40];
+const SENTINEL = 'sentinel';
+
+function buildCode(atTail: boolean, sentinel: boolean): AlgorithmMeta['code'] {
+  const cpp: CodeLine[] = [
+    { text: '#include <iostream>' },
+    { text: 'struct LNode { int data; LNode *next; };' },
+    { text: 'LNode* CreateList(const int A[], int n) {' },
+    { text: sentinel ? '  LNode *head = new LNode{0, nullptr};  // 头结点不存数据' : '  LNode *head = nullptr;', anchor: 'init' },
+  ];
+  const python: CodeLine[] = [
+    { text: 'class Node:' },
+    { text: '    def __init__(self, data):' },
+    { text: '        self.data = data' },
+    { text: '        self.next = None' },
+    { text: 'def create_list(A):' },
+    { text: sentinel ? '    head = Node(None)  # 头结点不存数据' : '    head = None', anchor: 'init' },
+  ];
+  if (atTail) {
+    cpp.push({ text: '  LNode *tail = head;' });
+    python.push({ text: '    tail = head' });
+  }
+  cpp.push({ text: '  for (int i = 0; i < n; ++i) {' }, { text: '    LNode *s = new LNode{A[i], nullptr};', anchor: 'alloc' });
+  python.push({ text: '    for v in A:' }, { text: '        s = Node(v)', anchor: 'alloc' });
+
+  if (atTail) {
+    if (!sentinel) {
+      cpp.push({ text: '    if (tail == nullptr) head = s;', anchor: 'first' }, { text: '    else tail->next = s;', anchor: 'link' });
+      python.push({ text: '        if tail is None:' }, { text: '            head = s', anchor: 'first' }, { text: '        else:' }, { text: '            tail.next = s', anchor: 'link' });
+    } else {
+      cpp.push({ text: '    tail->next = s;', anchor: 'link' });
+      python.push({ text: '        tail.next = s', anchor: 'link' });
+    }
+    cpp.push({ text: '    tail = s;', anchor: 'tail' });
+    python.push({ text: '        tail = s', anchor: 'tail' });
+  } else {
+    cpp.push(
+      { text: sentinel ? '    s->next = head->next;' : '    s->next = head;', anchor: 'link' },
+      { text: sentinel ? '    head->next = s;' : '    head = s;', anchor: 'head' },
+    );
+    python.push(
+      { text: sentinel ? '        s.next = head.next' : '        s.next = head', anchor: 'link' },
+      { text: sentinel ? '        head.next = s' : '        head = s', anchor: 'head' },
+    );
+  }
+
+  cpp.push(
+    { text: '  }' }, { text: '  return head;', anchor: 'done' }, { text: '}' },
+    { text: 'int main() {' },
+    { text: '  int A[] = {10, 20, 30, 40};' },
+    { text: '  LNode *head = CreateList(A, 4);' },
+    { text: `  for (LNode *p = ${sentinel ? 'head->next' : 'head'}; p; p = p->next)` },
+    { text: '    std::cout << p->data << " ";' },
+    { text: '}' },
+  );
+  python.push(
+    { text: '    return head', anchor: 'done' },
+    { text: 'head = create_list([10, 20, 30, 40])' },
+    { text: sentinel ? 'p = head.next' : 'p = head' },
+    { text: 'while p:' }, { text: '    print(p.data, end=" ")' }, { text: '    p = p.next' },
+  );
+  return { cpp, python };
+}
+
+function createListDemo(slug: string, atTail: boolean, sentinel: boolean): AlgorithmMeta {
+  const method = atTail ? '尾插' : '头插';
+  const variant = sentinel ? '带头结点' : '无头结点';
+  const orderText = atTail ? '保持输入顺序' : '与输入顺序相反';
+  return {
+    slug,
+    title: `单链表${method} · ${variant}`,
+    chapter: '第 2 章 线性表',
+    category: 'ch2',
+    summary: `逐个在${atTail ? '链尾' : '首个数据结点之前'}插入，结果${orderText}。`,
+    complexity: { time: 'O(n)', space: 'O(n)', extra: '每个结点插入 O(1)，建表额外空间 O(1)' },
+    difficulty: '入门',
+    inputHint: `输入 1–8 个整数，观察${variant}的${method}法。`,
+    defaultInput: DEFAULT,
+    input: { min: -999, max: 999, minLen: 1, maxLen: 8 },
+    code: buildCode(atTail, sentinel),
+    doc: [
+      {
+        heading: '空表与头指针',
+        body: sentinel
+          ? 'head 始终指向一个不存放数据的头结点。空表时 head->next 为 NULL，遍历数据从 head->next 开始。'
+          : '空表时 head 为 NULL。插入第一个数据结点后，head 直接指向它，遍历数据从 head 开始。',
+      },
+      {
+        heading: `${method}法的指针更新`,
+        body: atTail
+          ? `${sentinel ? 'tail 初始指向头结点，所有插入都执行 tail->next = s。' : 'tail 初始为 NULL。第一次插入要先令 head = s，此后通过 tail->next = s 接到链尾。'}每次接好新结点后再令 tail = s，建表结果${orderText}。`
+          : `先让 s->next 保存原首结点，再更新 ${sentinel ? 'head->next' : 'head'}。每次都插在旧数据之前，建表结果${orderText}。`,
+      },
     ],
-    python: [
-      { text: 'class Node:' },
-      { text: '    def __init__(self, data):' },
-      { text: '        self.data = data' },
-      { text: '        self.next = None' },
-      { text: 'def create_head(A):' },
-      { text: '    head = None', anchor: 'init' },
-      { text: '    for v in A:' },
-      { text: '        s = Node(v)', anchor: 'alloc' },
-      { text: '        s.next = head', anchor: 'link' },
-      { text: '        head = s', anchor: 'head' },
-      { text: '    return head', anchor: 'done' },
-      { text: 'p = create_head([10, 20, 30, 40])' },
-      { text: 'while p: print(p.data); p = p.next' },
+    quiz: [
+      { q: '依次输入 10、20、30，最终的数据结点顺序是？', options: ['10 → 20 → 30', '30 → 20 → 10', '20 → 10 → 30'], answer: atTail ? 0 : 1, explain: `${method}建表的结果${orderText}。` },
+      { q: '空链表初始化后，head 指向什么？', options: ['NULL', '不存数据的头结点', '尾部数据结点'], answer: sentinel ? 1 : 0, explain: sentinel ? '头结点在插入数据前就已经存在。' : '无头结点的空表用 NULL 表示。' },
     ],
-  },
-  doc: [
-    {
-      heading: '核心思想',
-      body: '头插法每次把新结点接到现有链表的头部：先申请结点，再让它的 next 指向原首结点，最后把 head 改指向新结点。三步顺序不能颠倒，否则会丢失整条链。',
-      points: ['初始化 head = NULL，空链表也适用，无需特判', 's->next = head 必须在 head = s 之前', '最终链表顺序与输入顺序相反，可用于逆置'],
+    generate: (input) => {
+      const values = input.slice(0, 8);
+      const steps: TraceStep[] = [];
+      const order: string[] = sentinel ? [SENTINEL] : [];
+      const data = new Map<string, string | number>();
+      const next = new Map<string, string | null>();
+      let head: string | null = sentinel ? SENTINEL : null;
+      let tail: string | null = atTail ? head : null;
+      let inserted = 0;
+      if (sentinel) {
+        data.set(SENTINEL, '头结点');
+        next.set(SENTINEL, null);
+      }
+      const label = (id: string | null) => id === null ? 'NULL' : data.get(id)!;
+      const pointer = (label: string, id: string | null): ScenePointer => ({ label, index: id === null ? null : order.indexOf(id) });
+      const push = (anchor: string, phase: string, caption: string, current?: string) => {
+        const pointers = [pointer('head', head)];
+        if (atTail) pointers.push(pointer('tail', tail));
+        if (current !== undefined) pointers.push(pointer('s', current));
+        const nodes = order.map((id) => node(id, label(id), id === current ? 'insert' : id === SENTINEL ? 'active' : 'default'));
+        const listLinks: ListLink[] = Array.from(next, ([from, to]) => ({ from, to, field: 'next' }));
+        steps.push(makeStep(
+          steps.length, anchor, phase,
+          { ...listScene(nodes, pointers, `${variant} · 数据结点 ${inserted} 个`), listLinks },
+          { head: label(head), ...(atTail ? { tail: label(tail) } : {}), ...(current !== undefined ? { s: label(current) } : {}), 已插入: inserted },
+          caption,
+        ));
+      };
+
+      push('init', '初始化', sentinel
+        ? `head 指向不存数据的头结点，head->next = NULL。${atTail ? 'tail 也指向头结点。' : ''}`
+        : `空表的 head = NULL。${atTail ? 'tail 也为 NULL。' : ''}`);
+
+      values.forEach((value, index) => {
+        const id = `n${index}`;
+        data.set(id, value);
+        next.set(id, null);
+        if (atTail) order.push(id);
+        else order.splice(sentinel ? 1 : 0, 0, id);
+        push('alloc', '申请结点', `申请结点 s，写入 ${value}，初始化 s->next = NULL。`, id);
+
+        if (atTail) {
+          inserted++;
+          if (tail === null) {
+            head = id;
+            push('first', '接入首结点', `原链表为空，执行 head = s，让 head 指向 ${value}。`, id);
+          } else {
+            next.set(tail, id);
+            push('link', '接到链尾', `执行 tail->next = s，从${sentinel && tail === SENTINEL ? '头结点' : `原尾结点 ${label(tail)}`}连到 ${value}。`, id);
+          }
+          tail = id;
+          push('tail', '更新尾指针', `执行 tail = s，新尾结点是 ${value}。`, id);
+        } else {
+          const first = sentinel ? next.get(SENTINEL)! : head;
+          next.set(id, first);
+          push('link', '链接后继', `执行 s->next = ${sentinel ? 'head->next' : 'head'}，新结点的 next 指向 ${label(first)}。`, id);
+          if (sentinel) next.set(SENTINEL, id);
+          else head = id;
+          inserted++;
+          push('head', sentinel ? '更新头结点的 next' : '更新头指针', `执行 ${sentinel ? 'head->next' : 'head'} = s，${value} 成为首个数据结点。`, id);
+        }
+      });
+
+      const sequence = order.filter((id) => id !== SENTINEL).map(label).join(' → ');
+      push('done', '完成', `${method}建表完成：${sequence || '空表'}。${sequence ? `结果${orderText}。` : ''}`);
+      return steps;
     },
-    {
-      heading: '不带头结点的情况',
-      body: '本演示不设头结点，head 直接指向第一个数据结点。第一次插入时 head 为 NULL，s->next = NULL 自然形成链尾，代码无需分支处理，这正是头插法简洁的原因。',
-    },
-    {
-      heading: '复杂度与易错点',
-      body: '每个结点插入 O(1)，建立 n 个结点共 O(n) 时间、O(n) 空间。',
-      points: ['先写 head = s 会导致原链表再也找不到（断链）', '忘记给 s->next 赋值会产生野指针', '遍历时误把 head 本身当作数据结点'],
-    },
-  ],
-  quiz: [
-    { q: '输入 10, 20, 30, 40 用头插法建立，链表从头到尾的顺序是？', options: ['10 20 30 40', '40 30 20 10', '10 40 30 20', '随机'], answer: 1, explain: '每次新结点都插到最前面，因此最终顺序与输入完全相反。' },
-    { q: '若把 head = s 写在 s->next = head 之前会怎样？', options: ['没有区别', '原链表丢失，只剩新结点', '编译报错', '结点重复'], answer: 1, explain: 'head 被覆盖后，原来的首结点地址再也取不到，链表断裂。' },
-  ],
-  generate: (input) => {
-    const steps: TraceStep[] = [];
-    const vals = (input.length >= 1 ? input : [10, 20, 30, 40]).slice(0, 8);
-    const ids: string[] = [];
-    const values: Record<string, number> = {};
-    let k = 0;
+  };
+}
 
-    const push = (
-      anchor: string,
-      phase: string,
-      caption: string,
-      pointers: ScenePointer[],
-      vars: Record<string, string | number>,
-      states: Record<string, NodeState> = {},
-      detached: string[] = [],
-    ) => {
-      steps.push(makeStep(
-        k++, anchor, phase,
-        listScene(ids.map((id) => node(id, values[id], states[id] ?? 'default')), pointers, `结点数 ${ids.length}`, detached),
-        vars, caption,
-      ));
-    };
-
-    push('init', '初始化', '建立空链表：head = NULL，此时没有任何数据结点。', [{ label: 'head', index: null }], { head: 'NULL', 已插入: 0 });
-
-    vals.forEach((v, idx) => {
-      const id = `n${idx}`;
-      values[id] = v;
-      ids.unshift(id);
-      const oldHead = ids.length > 1 ? values[ids[1]] : 'NULL';
-      const p: ScenePointer[] = [
-        { label: 's', index: 0 },
-        { label: 'head', index: ids.length > 1 ? 1 : null },
-      ];
-      push('alloc', '申请结点', `申请新结点 s，数据域写入 ${v}；此时 s->next 尚未连接。`, p,
-        { s: v, head: oldHead, 已插入: idx + 1 }, { [id]: 'insert' }, [id]);
-      push('link', '链接后继', `执行 s->next = head，新结点指向${ids.length > 1 ? `原首结点 ${oldHead}` : ' NULL'}。`, p,
-        { s: v, head: oldHead, 已插入: idx + 1 }, { [id]: 'active' });
-      push('head', '更新头指针', `执行 head = s，${v} 成为新的首结点。`, [{ label: 'head', index: 0 }],
-        { s: v, head: v, 已插入: idx + 1 }, { [id]: 'found' });
-    });
-
-    push('done', '完成', `头插完成：链表顺序为 ${vals.slice().reverse().join(' → ')}，与输入顺序相反。`,
-      [{ label: 'head', index: 0 }], { head: vals[vals.length - 1], 已插入: vals.length });
-    return steps;
-  },
-};
+// 保留原来的地址，既有链接和学习进度继续对应无头结点的头插法。
+export const linkHeadInsert = createListDemo('list/link-head-node', false, false);
+export const linkHeadInsertWithSentinel = createListDemo('list/head-insert-sentinel', false, true);
+export const linkTailInsert = createListDemo('list/tail-insert', true, false);
+export const linkTailInsertWithSentinel = createListDemo('list/tail-insert-sentinel', true, true);

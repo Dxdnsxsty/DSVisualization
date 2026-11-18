@@ -67,8 +67,8 @@ export const postorderTree: AlgorithmMeta = {
     const ids = vals.map((_, i) => `n${i}`);
     const baseEdges: SceneEdge[] = [];
     for (let i = 0; i < n; i++) {
-      if (2 * i + 1 < n) baseEdges.push(edge(ids[i], ids[2 * i + 1]));
-      if (2 * i + 2 < n) baseEdges.push(edge(ids[i], ids[2 * i + 2]));
+      if (2 * i + 1 < n) baseEdges.push({ ...edge(ids[i], ids[2 * i + 1]), side: 'left' });
+      if (2 * i + 2 < n) baseEdges.push({ ...edge(ids[i], ids[2 * i + 2]), side: 'right' });
     }
     const steps: TraceStep[] = [];
     let k = 0;
@@ -76,7 +76,10 @@ export const postorderTree: AlgorithmMeta = {
     const edgeStates: Record<string, EdgeState> = {};
     const seq: number[] = [];
 
-    const push = (anchor: string, phase: string, caption: string, stack: string[]) => {
+    const push = (anchor: string, phase: string, caption: string, stack: number[]) => {
+      const current = stack.at(-1);
+      const active = anchor === 'left' || anchor === 'right' ? anchor : undefined;
+      const callStack = stack.map((index) => `PostOrder(${vals[index]})`);
       const nodes = vals.map((v, i) => node(ids[i], v, states[ids[i]] ?? 'default'));
       const edges = baseEdges.map((e) => ({
         ...e,
@@ -87,27 +90,27 @@ export const postorderTree: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          treeScene(nodes, edges, `后序序列：${seq.length ? seq.join(' ') : '空'}`),
+          { ...treeScene(nodes, edges, `后序序列：${seq.length ? seq.join(' ') : '空'}`), subtrees: current === undefined ? undefined : { root: ids[current], active } },
           {
-            当前结点: stack.length ? stack[stack.length - 1] : '—',
+            当前结点: callStack.at(-1) ?? '—',
             递归深度: stack.length,
             已访问: seq.length,
             后序序列: seq.length ? seq.join(' ') : '空',
           },
           caption,
-          stack.length ? [...stack] : undefined,
+          callStack.length ? callStack : undefined,
         ),
       );
     };
 
     push('build', '建树', `按层序把 ${n} 个结点挂成完全二叉树，根为 ${vals[0]}。`, []);
 
-    const dfs = (i: number, stack: string[]): void => {
+    const dfs = (i: number, stack: number[]): void => {
       if (i >= n) {
         push('guard', '递归出口', '子树为空，直接返回上一层，不访问任何结点。', stack);
         return;
       }
-      stack.push(`PostOrder(${vals[i]})`);
+      stack.push(i);
       states[ids[i]] = 'active';
 
       if (2 * i + 1 < n) {

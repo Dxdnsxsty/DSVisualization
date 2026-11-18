@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { usePlayer } from '../engine/player';
 import { tokenize } from '../engine/highlight';
+import { decodeMatchInput } from '../engine/input';
 import type { AlgorithmMeta, TraceStep } from '../engine/types';
 
 const LANG_LABEL: Record<string, string> = { cpp: 'C++', python: 'Python' };
@@ -68,7 +69,9 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
   const download = () => {
     const ext = p.lang === 'python' ? 'py' : 'cpp';
     const prefix = p.lang === 'python' ? '# ' : '// ';
-    const text = `${prefix}${algo.title} · DS·Visual 教学示例\n${prefix}输入示例：${p.input.join(', ')}\n\n${lines.map((l) => l.text).join('\n')}\n`;
+    const [main, pattern] = algo.input?.format === 'string-match' ? decodeMatchInput(p.input) : [];
+    const example = main !== undefined ? `主串 ${main}，模式串 ${pattern}` : p.input.join(', ');
+    const text = `${prefix}${algo.title} · DS·Visual 教学示例\n${prefix}输入示例：${example}\n\n${lines.map((l) => l.text).join('\n')}\n`;
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url; a.download = `${algo.slug.replace('/', '-')}.${ext}`; a.click();

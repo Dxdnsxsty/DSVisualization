@@ -103,12 +103,15 @@ export const seqStack: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          arrayScene(
-            Array.from({ length: CAP }, (_, i) => node(`s${i}`, data[i] ?? '', states[i] ?? 'default')),
-            pointers,
-            CAP,
-            `top = ${top} · 栈长 ${top + 1} / 容量 ${CAP}`,
-          ),
+          {
+            ...arrayScene(
+              Array.from({ length: CAP }, (_, i) => node(`s${i}`, data[i] ?? '', states[i] ?? 'default')),
+              pointers,
+              CAP,
+              `top = ${top} · 栈长 ${top + 1} / 容量 ${CAP}`,
+            ),
+            layout: 'stack',
+          },
           { 栈顶: top, 栈长: top + 1, 容量: CAP, ...extra },
           caption,
         ),

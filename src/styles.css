@@ -388,6 +388,7 @@ select:hover { border-color: #d8dbe3; }
   padding: 8px 6px;
 }
 .stage-canvas svg { display: block; min-width: 560px; }
+.stage-canvas :is(.stack-svg, .ring-queue-svg) { min-width: 0; }
 
 /* 横向滚动提示：右侧渐隐 + 箭头，只提示「还能往右看」，不可点击 */
 .stage-viewport { position: relative; }

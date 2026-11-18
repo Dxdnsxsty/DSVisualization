@@ -128,7 +128,10 @@ export const circularJoseph: AlgorithmMeta = {
       const note = `循环单链表：${alive[alive.length - 1]} 号的 next 指回 ${alive[0]} 号 · 还剩 ${alive.length} 人`;
       steps.push(makeStep(
         k++, anchor, phase,
-        listScene(alive.map((v) => node(`p${v}`, v, states[`p${v}`] ?? 'default')), pointers, note),
+        {
+          ...listScene(alive.map((v) => node(`p${v}`, v, states[`p${v}`] ?? 'default')), pointers, note),
+          circular: true,
+        },
         vars, caption,
       ));
     };

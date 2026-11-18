@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePlayer } from '../engine/player';
 import type { AlgorithmMeta } from '../engine/types';
-import { DEFAULT_INPUT, parseInputText, randomInput, validateInput } from '../engine/input';
+import { decodeMatchInput, DEFAULT_INPUT, parseInputText, parseMatchInput, randomInput, validateInput } from '../engine/input';
 
 export function Controls({ onFullscreen }: { onFullscreen: () => void }) {
   const p = usePlayer();
@@ -63,24 +63,26 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
   const p = usePlayer();
   // 校验规则来自算法元数据，不再全站写死「2–10 个 -999~999 的整数」
   const spec = algo.input ?? DEFAULT_INPUT;
-  const [text, setText] = useState(p.input.join(', '));
+  const stringMatch = spec.format === 'string-match';
+  const [draft, setDraft] = useState<[string, string]>(() => stringMatch ? decodeMatchInput(p.input) : [p.input.join(', '), '']);
   const [error, setError] = useState('');
 
-  useEffect(() => { setText(p.input.join(', ')); setError(''); }, [p.input]);
+  useEffect(() => {
+    setDraft(stringMatch ? decodeMatchInput(p.input) : [p.input.join(', '), '']);
+    setError('');
+  }, [p.input, stringMatch]);
 
-  const apply = (raw: string): boolean => {
-    const { nums, error: parseError } = parseInputText(raw);
-    if (parseError) { setError(parseError); return false; }
+  const apply = () => {
+    const { nums, error: parseError } = stringMatch ? parseMatchInput(...draft) : parseInputText(draft[0]);
+    if (parseError) { setError(parseError); return; }
     const err = validateInput(spec, nums);
-    if (err) { setError(err); return false; }
+    if (err) { setError(err); return; }
     setError('');
     p.regenerate(nums);
-    return true;
   };
 
   const random = () => {
     const arr = randomInput(spec);
-    setText(arr.join(', '));
     // 随机出来的数据若自身不合法，说明规则写错了：明确报错，而不是静默回退成默认串
     const err = validateInput(spec, arr);
     if (err) { setError(`随机生成失败：${err}`); return; }
@@ -89,18 +91,27 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
   };
 
   return (
-    <div className="panel input-panel">
+    <form className="panel input-panel" onSubmit={(event) => { event.preventDefault(); apply(); }}>
       <div className="input-row">
-        <label htmlFor="dsv-input">自定义数据</label>
-        <input id="dsv-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="20, 60, 30, 10, 40" />
-        <button className="primary" onClick={() => apply(text)}>生成动画</button>
-        <button onClick={random}>随机</button>
-        <button onClick={() => { setText(algo.defaultInput.join(', ')); setError(''); p.regenerate(algo.defaultInput); }}>默认</button>
+        <label htmlFor="dsv-input">{stringMatch ? '主串' : '自定义数据'}</label>
+        <input id="dsv-input" value={draft[0]} onChange={(e) => setDraft([e.target.value, draft[1]])}
+          placeholder={stringMatch ? 'abababc' : '20, 60, 30, 10, 40'} spellCheck={stringMatch ? false : undefined} />
+        {stringMatch && <>
+          <label htmlFor="dsv-pattern">模式串</label>
+          <input id="dsv-pattern" value={draft[1]} onChange={(e) => setDraft([draft[0], e.target.value])} placeholder="abc" spellCheck={false} />
+        </>}
+        <button className="primary" type="submit">生成动画</button>
+        <button type="button" onClick={random}>随机</button>
+        <button type="button" onClick={() => {
+          setDraft(stringMatch ? decodeMatchInput(algo.defaultInput) : [algo.defaultInput.join(', '), '']);
+          setError('');
+          p.regenerate(algo.defaultInput);
+        }}>默认</button>
       </div>
       <div className="input-hint">
-        {error ? <span className="error">{error}</span> : <span className="muted">{algo.inputHint}</span>}
+        {error ? <span className="error" role="alert">{error}</span> : <span className="muted">{algo.inputHint}</span>}
         <span className="muted">改动数据会重新生成整条步骤序列</span>
       </div>
-    </div>
+    </form>
   );
 }

@@ -1,4 +1,4 @@
-import type { AlgorithmMeta, EdgeState, NodeState, SceneEdge, TraceStep } from '../../engine/types';
+import type { AlgorithmMeta, EdgeState, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
 
 /** 固定示例图（无向）：A-B、A-C、B-D、B-E、C-F、E-F */
@@ -74,63 +74,62 @@ export const dfsGraph: AlgorithmMeta = {
   generate: (input) => {
     const n = Math.min(Math.max(input[0] || 6, 3), 6);
     const ids = VEX.slice(0, n).map((v) => `v${v}`);
-    const baseEdges: SceneEdge[] = ADJ.filter(([a, b]) => a < n && b < n).map(([a, b]) =>
-      edge(ids[a], ids[b], undefined, 'default', false),
-    );
+    const pairs = ADJ.filter(([a, b]) => a < n && b < n);
     const steps: TraceStep[] = [];
     let k = 0;
     const visited: boolean[] = Array(n).fill(false);
-    const states: Record<string, NodeState> = {};
-    const eStates: Record<string, EdgeState> = {};
+    const parents: (number | undefined)[] = Array(n);
+    let checking: { from: number; to: number; state: EdgeState } | undefined;
 
-    const push = (anchor: string, phase: string, caption: string, stack: string[]) => {
+    const push = (anchor: string, phase: string, caption: string, stack: number[]) => {
+      const current = stack.at(-1);
+      const callStack = stack.map((v) => `DFS(${VEX[v]})`);
       const nodes = VEX.slice(0, n).map((v, i) =>
-        nodeAt(ids[i], v, POS[i].x, POS[i].y, states[ids[i]] ?? 'default'),
+        nodeAt(ids[i], v, POS[i].x, POS[i].y, visited[i] ? 'visited' : i === current ? 'active' : 'default', undefined, i === current ? '当前' : undefined),
       );
-      const edges = baseEdges.map((e) => {
-        const key = `${e.from}>${e.to}`;
-        const rev = `${e.to}>${e.from}`;
-        return { ...e, state: eStates[key] ?? eStates[rev] ?? ('default' as EdgeState) };
+      const edges = pairs.map(([a, b]) => {
+        if (parents[b] === a) return edge(ids[a], ids[b], undefined, 'tree', true);
+        if (parents[a] === b) return edge(ids[b], ids[a], undefined, 'tree', true);
+        if (checking && ((checking.from === a && checking.to === b) || (checking.from === b && checking.to === a))) {
+          return edge(ids[a], ids[b], undefined, checking.state);
+        }
+        return edge(ids[a], ids[b]);
       });
       steps.push(
         makeStep(
           k++,
           anchor,
           phase,
-          graphScene(nodes, edges, `从 A 出发，已访问 ${visited.filter(Boolean).length} / ${n}`),
+          { ...graphScene(nodes, edges, `从 A 出发，已访问 ${visited.filter(Boolean).length} / ${n}`), graphTrace: 'traversal' },
           {
-            当前顶点: stack.length ? stack[stack.length - 1] : '—',
+            当前顶点: callStack.at(-1) ?? '—',
             已访问: visited.map((b, i) => (b ? VEX[i] : '')).filter(Boolean).join('') || '空',
             递归深度: stack.length,
           },
           caption,
-          stack.length ? [...stack] : undefined,
+          callStack.length ? callStack : undefined,
         ),
       );
     };
 
-    const dfs = (v: number, stack: string[]): void => {
-      stack.push(`DFS(${VEX[v]})`);
-      visited[v] = true;
-      states[ids[v]] = 'found';
+    const dfs = (v: number, stack: number[]): void => {
+      stack.push(v);
       push('visit', '访问顶点', `进入 ${VEX[v]}，把它加入遍历序列。`, stack);
+      visited[v] = true;
       push('mark', '标记已访问', `visited[${VEX[v]}] = 1，之后不会再进入它。`, stack);
 
       for (let w = 0; w < n; w++) {
         const linked = ADJ.some(([a, b]) => (a === v && b === w) || (a === w && b === v));
         if (!linked) continue;
-        const key = `${ids[v]}>${ids[w]}`;
-        const rev = `${ids[w]}>${ids[v]}`;
-        eStates[key] = 'active';
-        eStates[rev] = 'active';
+        checking = { from: v, to: w, state: 'active' };
         push('loop', '考察邻接点', `检查 ${VEX[v]} 的邻接点 ${VEX[w]}。`, stack);
         if (visited[w]) {
-          eStates[key] = 'reject';
-          eStates[rev] = 'reject';
+          checking.state = 'reject';
           push('check', '跳过已访问', `${VEX[w]} 已访问过，跳过它，继续看下一个邻接点。`, stack);
+          checking = undefined;
         } else {
-          eStates[key] = 'tree';
-          eStates[rev] = 'tree';
+          checking = undefined;
+          parents[w] = v;
           push('recurse', '递归深入', `${VEX[w]} 未访问，从它继续深度优先，压栈进入。`, stack);
           dfs(w, stack);
         }

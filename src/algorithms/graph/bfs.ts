@@ -1,4 +1,4 @@
-import type { AlgorithmMeta, EdgeState, NodeState, TraceStep } from '../../engine/types';
+import type { AlgorithmMeta, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
 
 /** 固定示例图（无向，明显分三层）：A-B、A-C、B-D、B-E、C-E、C-F、E-F */
@@ -100,25 +100,27 @@ export const bfsGraph: AlgorithmMeta = {
     const steps: TraceStep[] = [];
     let k = 0;
     const visited: boolean[] = Array(n).fill(false);
-    const states: Record<string, NodeState> = {};
-    const eStates: Record<string, EdgeState> = {};
+    const parents: (number | undefined)[] = Array(n);
+    const skipped = new Set<string>();
     const queue: number[] = [];
     const order: number[] = [];
     const dist: number[] = Array(n).fill(-1);
 
     const push = (anchor: string, phase: string, caption: string, cur = -1) => {
       const nodes = VEX.slice(0, n).map((v, i) =>
-        nodeAt(ids[i], v, POS[i].x, POS[i].y, states[ids[i]] ?? 'default'),
+        nodeAt(ids[i], v, POS[i].x, POS[i].y, visited[i] ? 'visited' : 'default', undefined, i === cur ? '当前' : undefined),
       );
-      const edges = pairs.map(([a, b]) =>
-        edge(ids[a], ids[b], undefined, eStates[eKey(a, b)] ?? 'default', false),
-      );
+      const edges = pairs.map(([a, b]) => {
+        if (parents[b] === a) return edge(ids[a], ids[b], undefined, 'tree', true);
+        if (parents[a] === b) return edge(ids[b], ids[a], undefined, 'tree', true);
+        return edge(ids[a], ids[b], undefined, skipped.has(eKey(a, b)) ? 'reject' : 'default');
+      });
       steps.push(
         makeStep(
           k++,
           anchor,
           phase,
-          graphScene(nodes, edges, `从 A 出发，已访问 ${order.length} 个顶点`),
+          { ...graphScene(nodes, edges, `从 A 出发，已标记 ${visited.filter(Boolean).length} 个顶点`), graphTrace: 'traversal' },
           {
             队列: queue.map((v) => VEX[v]).join(' ') || '空',
             当前顶点: cur >= 0 ? VEX[cur] : '—',
@@ -133,12 +135,10 @@ export const bfsGraph: AlgorithmMeta = {
     visited[0] = true;
     dist[0] = 0;
     queue.push(0);
-    states[ids[0]] = 'active';
     push('init', '初始化', '起点 A 入队并标记已访问，队列中的顶点都是「已发现待扩展」。');
 
     while (queue.length > 0) {
       const u = queue.shift() as number;
-      states[ids[u]] = 'found';
       push('dequeue', '出队', `队头 ${VEX[u]} 出队，接下来扩展它的所有邻接点。`, u);
       order.push(u);
       push('visit', '访问顶点', `访问 ${VEX[u]}，它是第 ${dist[u] + 1} 层（距起点 ${dist[u]} 条边）的顶点。`, u);
@@ -146,18 +146,16 @@ export const bfsGraph: AlgorithmMeta = {
       for (let w = 0; w < n; w++) {
         if (!pairs.some(([a, b]) => (a === u && b === w) || (a === w && b === u))) continue;
         if (visited[w]) {
-          if (!eStates[eKey(u, w)]) eStates[eKey(u, w)] = 'reject';
+          skipped.add(eKey(u, w));
           push('check', '跳过已访问', `邻接点 ${VEX[w]} 已访问过，跳过，继续看下一个邻接点。`, u);
           continue;
         }
         visited[w] = true;
         dist[w] = dist[u] + 1;
         queue.push(w);
-        states[ids[w]] = 'active';
-        eStates[eKey(u, w)] = 'tree';
+        parents[w] = u;
         push('enqueue', '发现并入队', `${VEX[w]} 未被访问，标记 visited 后入队，距离为 ${dist[w]}。`, u);
       }
-      states[ids[u]] = 'visited';
     }
     push('done', '遍历完成', `队列已空，广度优先序列为 ${order.map((v) => VEX[v]).join(' → ')}。`);
     return steps;

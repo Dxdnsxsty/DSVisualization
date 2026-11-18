@@ -1,4 +1,4 @@
-import type { AlgorithmMeta, NodeState, ScenePointer, TraceStep } from '../../engine/types';
+import type { AlgorithmMeta, ListLink, NodeState, ScenePointer, TraceStep } from '../../engine/types';
 import { listScene, makeStep, node } from '../../engine/scene';
 
 /** 链表最多演示 6 个数据结点，保证每一步都能看清指针走向。 */
@@ -122,6 +122,12 @@ export const doublyInsert: AlgorithmMeta = {
     value['s'] = x;
 
     let order = ['h', ...list.map((_, idx) => `n${idx}`)];
+    const next = new Map<string, string | null>();
+    const prior = new Map<string, string | null>();
+    order.forEach((id, index) => {
+      next.set(id, order[index + 1] ?? null);
+      prior.set(id, order[index - 1] ?? null);
+    });
     let pIdx = 0;
     let j = 0;
     let sIdx: number | null = null;
@@ -132,7 +138,6 @@ export const doublyInsert: AlgorithmMeta = {
       phase: string,
       caption: string,
       states: Record<string, NodeState>,
-      detached: string[],
       note: string,
     ) => {
       const pointers: ScenePointer[] = [{ label: 'p', index: pIdx }];
@@ -140,45 +145,54 @@ export const doublyInsert: AlgorithmMeta = {
       const nodes = order.map((id, idx) =>
         node(id, value[id], states[id] ?? 'default', undefined, id === 'h' ? undefined : String(idx)),
       );
+      const listLinks: ListLink[] = [
+        ...Array.from(next, ([from, to]) => ({ from, to, field: 'next' as const })),
+        ...Array.from(prior, ([from, to]) => ({ from, to, field: 'prior' as const })),
+      ];
       steps.push(makeStep(
         k++, anchor, phase,
-        listScene(nodes, pointers, note, detached),
+        { ...listScene(nodes, pointers, note), listLinks },
         { i: pos, x, j, p: value[order[pIdx]] },
         caption,
       ));
     };
 
-    snap('init', '初始化', `p 指向头结点，j = 0；准备把 ${x} 插到第 ${pos} 个位置。`, { h: 'active' }, [], `带头结点双链表，共 ${list.length} 个数据结点`);
+    snap('init', '初始化', `p 指向头结点，j = 0；准备把 ${x} 插到第 ${pos} 个位置。`, { h: 'active' }, `带头结点双链表，共 ${list.length} 个数据结点`);
 
     while (j < pos - 1) {
-      snap('loop', '查找前驱', `j = ${j} < i-1 = ${pos - 1}，p 还没到前驱位置，继续后移。`, { [order[pIdx]]: 'active' }, [], `循环条件 j < i-1`);
+      snap('loop', '查找前驱', `j = ${j} < i-1 = ${pos - 1}，p 还没到前驱位置，继续后移。`, { [order[pIdx]]: 'active' }, `循环条件 j < i-1`);
       pIdx += 1;
       j += 1;
-      snap('move', '指针后移', `执行 p = p->next，j = ${j}，p 指向${pIdx === 0 ? '头结点' : `第 ${j} 个结点（值 ${value[order[pIdx]]}）`}。`, { [order[pIdx]]: 'active' }, [], `已移动 ${j} / ${pos - 1} 次`);
+      snap('move', '指针后移', `执行 p = p->next，j = ${j}，p 指向第 ${j} 个结点（值 ${value[order[pIdx]]}）。`, { [order[pIdx]]: 'active' }, `已移动 ${j} / ${pos - 1} 次`);
     }
 
-    snap('loop', '循环结束', `j = ${pos - 1}，不再满足 j < i-1；p 停在${pIdx === 0 ? '头结点上，说明新结点将插在第一个数据结点之前' : `第 ${pos - 1} 个结点（值 ${value[order[pIdx]]}），它就是插入位置的前驱`}。`, { [order[pIdx]]: 'found' }, [], 'p 即第 i-1 个结点');
+    snap('loop', '循环结束', `j = ${pos - 1}，不再满足 j < i-1；p 停在${pIdx === 0 ? '头结点上，说明新结点将插在第一个数据结点之前' : `第 ${pos - 1} 个结点（值 ${value[order[pIdx]]}），它就是插入位置的前驱`}。`, { [order[pIdx]]: 'found' }, 'p 即第 i-1 个结点');
 
-    const nextId = pIdx + 1 < order.length ? order[pIdx + 1] : null;
+    const predecessor = order[pIdx];
+    const nextId = next.get(predecessor) ?? null;
     sIdx = pIdx + 1;
     order = [...order.slice(0, sIdx), 's', ...order.slice(sIdx)];
 
-    snap('alloc', '申请结点', `申请新结点 s，data 写入 ${x}；此时 s 的两条指针都还没赋值，是一条孤立的结点。`, { s: 'insert', [order[pIdx]]: 'active' }, ['s'], '虚线表示 s 尚未被链表引用');
+    snap('alloc', '申请结点', `申请新结点 s，data 写入 ${x}，暂未接入原链表。`, { s: 'insert', [predecessor]: 'active' }, 's 尚未接入');
 
-    snap('prior', '第 1 条：接前驱', `s->prior = p，新结点的 prior 指向前驱 ${value[order[pIdx]]}；前驱暂时还不知道 s 的存在。`, { s: 'insert', [order[pIdx]]: 'active' }, ['s'], '只改 s 自己的 prior 域');
+    prior.set('s', predecessor);
+    snap('prior', '第 1 条：接前驱', `s->prior = p，新结点的 prior 指向前驱 ${value[predecessor]}。`, { s: 'insert', [predecessor]: 'active' }, '只改 s 自己的 prior 域');
 
-    snap('next', '第 2 条：接后继', `s->next = p->next，新结点的 next 指向原来的后继 ${nextId === null ? 'NULL（p 是尾结点）' : value[nextId]}；此时 s 仍未被任何结点指向。`, { s: 'insert', [order[pIdx]]: 'active' }, ['s'], '两条链都从 s 出发，但没人指向 s');
+    next.set('s', nextId);
+    snap('next', '第 2 条：接后继', `s->next = p->next，新结点的 next 指向 ${nextId === null ? 'NULL（p 是尾结点）' : `原后继 ${value[nextId]}`}。`, { s: 'insert', [predecessor]: 'active' }, 's 已设置自己的 prior 和 next');
 
     if (nextId !== null) {
-      snap('neig', '第 3 条：改后继回指', `p->next->prior = s，原后继 ${value[nextId]} 的 prior 改指新结点。这一步必须赶在 p->next = s 之前，否则 p->next 已经是 s，会写成 s->prior = s。`, { s: 'insert', [nextId]: 'compare', [order[pIdx]]: 'active' }, ['s'], '先改后继，再改前驱的 next');
+      prior.set(nextId, 's');
+      snap('neig', '第 3 条：改后继回指', `p->next->prior = s，原后继 ${value[nextId]} 的 prior 改指新结点。这一步必须赶在 p->next = s 之前，否则会写成 s->prior = s。`, { s: 'insert', [nextId]: 'compare', [predecessor]: 'active' }, '先改后继，再改前驱的 next');
     } else {
-      snap('neig', '尾结点跳过第三步', `p 是尾结点，p->next == NULL，没有后继需要改回指，第三条语句跳过不执行。`, { s: 'insert', [order[pIdx]]: 'active' }, ['s'], 'p->next == NULL，第三句不执行');
+      snap('neig', '尾结点跳过第三步', `p 是尾结点，p->next == NULL，没有后继需要改回指。`, { s: 'insert', [predecessor]: 'active' }, 'p->next == NULL，第三句不执行');
     }
 
-    snap('link', '第 4 条：前驱指向新结点', `p->next = s，前驱 ${value[order[pIdx]]} 的 next 终于指向新结点，四条指针全部就位，链表长度变为 ${order.length - 1}。`, { s: 'found', [order[pIdx]]: 'active' }, [], 'p->next = s 必须最后执行');
+    next.set(predecessor, 's');
+    snap('link', '第 4 条：前驱指向新结点', `p->next = s，前驱 ${value[predecessor]} 的 next 指向新结点，链表长度变为 ${order.length - 1}。`, { s: 'found', [predecessor]: 'active' }, 'p->next = s 必须最后执行');
 
     const seq = order.filter((id) => id !== 'h').map((id) => value[id]).join(' → ');
-    snap('done', '完成', `插入完成：${seq}，新结点位于第 ${pos} 个位置。`, {}, [], `共 ${order.length - 1} 个数据结点`);
+    snap('done', '完成', `插入完成：${seq}，新结点位于第 ${pos} 个位置。`, {}, `共 ${order.length - 1} 个数据结点`);
     return steps;
   },
 };

@@ -91,7 +91,7 @@ export const symmetricMatrix: AlgorithmMeta = {
         }
       }
       const pointers: ScenePointer[] = [];
-      if (ci !== null) pointers.push({ label: 'i', index: ci * n });
+      if (ci !== null) pointers.push({ label: 'i', index: ci * n, axis: 'row' });
       if (ci !== null && cj !== null) pointers.push({ label: 'j', index: ci * n + cj });
       const auxNodes = B.map((v, x) =>
         node(`b${x}`, v ?? '', states[`b${x}`] ?? (v === null ? 'default' : 'sorted')),
@@ -104,6 +104,7 @@ export const symmetricMatrix: AlgorithmMeta = {
           {
             ...gridScene(nodes, n, pointers, `对称矩阵 A（${n}×${n}）· 只存下三角，共 ${total} 个元素`),
             aux: { label: `一维数组 B（长度 ${total}）`, nodes: auxNodes, cols: total },
+            layout: 'matrix',
           },
           {
             i: ci === null ? '—' : ci,

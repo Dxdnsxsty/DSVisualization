@@ -23,6 +23,7 @@ export interface SceneEdge {
   label?: string;
   state?: EdgeState;
   directed?: boolean;
+  bidirectional?: boolean; // 无向边的两条邻接表记录均已接入
   /** 树边可标注是左孩子还是右孩子；图场景忽略此字段。渲染不依赖它，供断言与扩展使用。 */
   side?: 'left' | 'right';
 }
@@ -41,6 +42,13 @@ export interface SceneNode {
 export interface ScenePointer {
   label: string;
   index: number | null; // null 表示指向 NULL
+  axis?: 'row'; // 矩阵行指针位于行首左侧
+}
+
+export interface ListLink {
+  from: string;
+  to: string | null;
+  field: 'next' | 'prior';
 }
 
 /** 辅助结构：归并排序的目标数组、基数排序的桶等，渲染在主舞台下方。 */
@@ -56,9 +64,14 @@ export interface Scene {
   nodes: SceneNode[]; // 数组顺序即从左到右的排列顺序
   pointers?: ScenePointer[];
   capacity?: number; // 顺序表固定格子数（含空格子）
+  layout?: 'stack' | 'ring-queue' | 'matrix' | 'string-match';
   note?: string;
   detached?: string[]; // 链表：这些结点尚未接入链（用于演示 s->next 赋值前的中间状态）
+  circular?: boolean; // 链表：尾结点的 next 指回首结点
+  listLinks?: ListLink[]; // 明确指定链表指针时，连线不由画面位置推断
   edges?: SceneEdge[]; // tree / graph
+  graphTrace?: 'traversal' | 'adjacency'; // 可区分发现路径与邻接表写入
+  subtrees?: { root: string; active?: SceneEdge['side'] }; // 当前递归结点的左右子树
   cols?: number; // array 折行成二维网格（矩阵、哈希表）时每行格子数
   aux?: SceneAux;
 }
@@ -103,6 +116,7 @@ export interface QuizItem {
 
 /** 输入规则：由算法自己声明，Controls 据此校验并提供合法的「随机」输入 */
 export interface InputSpec {
+  format?: 'string-match'; // 输入界面使用独立的主串和模式串
   /** 单个数值的允许范围（含端点） */
   min?: number;
   max?: number;

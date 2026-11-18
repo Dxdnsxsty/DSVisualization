@@ -4,7 +4,7 @@ import { sequenceDelete } from './array/sequence-delete';
 import { symmetricMatrix } from './array/symmetric-matrix';
 import { sparseTriple } from './array/sparse-triple';
 import { triDiagonal } from './array/tri-diagonal';
-import { linkHeadInsert } from './list/link-head-node';
+import { linkHeadInsert, linkHeadInsertWithSentinel, linkTailInsert, linkTailInsertWithSentinel } from './list/link-head-node';
 import { linkSearch } from './list/link-search';
 import { doublyInsert } from './list/doubly-insert';
 import { circularJoseph } from './list/circular-joseph';
@@ -64,7 +64,11 @@ export const categories: Category[] = [
   {
     id: 'ch2',
     title: '第 2 章 · 线性表',
-    slugs: ['array/sequence-insert', 'array/sequence-delete', 'list/link-head-node', 'list/link-search', 'list/doubly-insert', 'list/circular-joseph', 'list/reverse'],
+    slugs: [
+      'array/sequence-insert', 'array/sequence-delete',
+      linkHeadInsert.slug, linkHeadInsertWithSentinel.slug, linkTailInsert.slug, linkTailInsertWithSentinel.slug,
+      'list/link-search', 'list/doubly-insert', 'list/circular-joseph', 'list/reverse',
+    ],
   },
   {
     id: 'ch3',
@@ -103,6 +107,9 @@ export const algorithms: AlgorithmMeta[] = [
   sparseTriple,
   triDiagonal,
   linkHeadInsert,
+  linkHeadInsertWithSentinel,
+  linkTailInsert,
+  linkTailInsertWithSentinel,
   linkSearch,
   doublyInsert,
   circularJoseph,

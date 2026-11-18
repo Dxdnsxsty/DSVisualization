@@ -3,6 +3,34 @@ import type { InputSpec } from './types';
 /** 未声明 input 的算法按这个规则校验：2–10 个 -999~999 的整数 */
 export const DEFAULT_INPUT: InputSpec = { min: -999, max: 999, minLen: 2, maxLen: 10 };
 
+export const STRING_MATCH_INPUT: InputSpec = {
+  format: 'string-match', min: 1, max: 26, minLen: 4, maxLen: 19,
+  check: ([m, ...letters]) => m > 5 ? '模式串须有 1–5 个字符' :
+    letters.length - m < 2 || letters.length - m > 13 ? '主串须有 2–13 个字符' : null,
+  random: () => {
+    const m = 2 + Math.floor(Math.random() * 3);
+    const rnd = () => 1 + Math.floor(Math.random() * 4);
+    const pattern = Array.from({ length: m }, rnd);
+    const head = Array.from({ length: Math.floor(Math.random() * 3) }, rnd);
+    const tail = Array.from({ length: Math.floor(Math.random() * 2) }, rnd);
+    return [m, ...head, ...pattern, ...tail, ...pattern];
+  },
+};
+
+export function decodeMatchInput([length, ...letters]: number[]): [string, string] {
+  const split = letters.length - (length ?? 0);
+  const decode = (values: number[]) => values.map((value) => String.fromCharCode(96 + value)).join('');
+  return [decode(letters.slice(0, split)), decode(letters.slice(split))];
+}
+
+export function parseMatchInput(text: string, pattern: string): ReturnType<typeof parseInputText> {
+  const main = text.trim();
+  const match = pattern.trim();
+  if (!/^[a-z]{2,13}$/.test(main)) return { nums: [], error: '主串请输入连续的 2–13 个小写英文字母' };
+  if (!/^[a-z]{1,5}$/.test(match)) return { nums: [], error: '模式串请输入连续的 1–5 个小写英文字母' };
+  return { nums: [match.length, ...Array.from(main + match, (letter) => letter.charCodeAt(0) - 96)], error: null };
+}
+
 /** 合法返回 null，否则返回给用户看的错误文案 */
 export function validateInput(spec: InputSpec, nums: number[]): string | null {
   const min = spec.min ?? -999;

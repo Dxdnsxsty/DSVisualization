@@ -1,33 +1,9 @@
-import type { AlgorithmMeta, InputSpec, NodeState, TraceStep } from '../../engine/types';
-import { validateInput } from '../../engine/input';
-import { arrayScene, makeStep, node } from '../../engine/scene';
+import type { AlgorithmMeta, NodeState, TraceStep } from '../../engine/types';
+import { decodeMatchInput, STRING_MATCH_INPUT as SPEC, validateInput } from '../../engine/input';
+import { makeStep, node, stringMatchScene } from '../../engine/scene';
 
 /** 输入约定：第 1 个数是模式串长度 m，接着是主串字符，最后 m 个数是模式串；1–26 映射为 a–z。 */
 const FALLBACK = [5, 1, 2, 1, 2, 3, 1, 2, 3, 1, 3, 2, 1, 2, 1, 2, 3, 1, 3];
-const letter = (v: number): string => String.fromCharCode(96 + Math.min(Math.max(v, 1), 26));
-
-const SPEC: InputSpec = {
-  min: 1,
-  max: 26,
-  minLen: 5,
-  maxLen: 19,
-  check: (v) => {
-    const m = v[0];
-    if (!(m >= 1 && m <= 5)) return '第 1 个数是模式串长度，必须在 1–5 之间';
-    const n = v.length - 1 - m;
-    if (n < 2) return '至少要有 2 个主串字符';
-    if (n > 13) return '主串最多 13 个字符';
-    return null;
-  },
-  random: () => {
-    const m = 2 + Math.floor(Math.random() * 3);
-    const rnd = () => 1 + Math.floor(Math.random() * 4);
-    const pat = Array.from({ length: m }, rnd);
-    const head = Array.from({ length: Math.floor(Math.random() * 3) }, rnd);
-    const tail = Array.from({ length: Math.floor(Math.random() * 2) }, rnd);
-    return [m, ...head, ...pat, ...tail, ...pat];
-  },
-};
 
 export const bfMatch: AlgorithmMeta = {
   slug: 'string/bf-match',
@@ -37,7 +13,7 @@ export const bfMatch: AlgorithmMeta = {
   summary: '失配后 i 回退到 i-j+1，模式串右移一位。',
   complexity: { time: 'O(n×m)', space: 'O(1)', extra: 'n 为主串长，m 为模式串长' },
   difficulty: '入门',
-  inputHint: '第 1 个数是模式串长度 m（1–5），接着是主串字符，最后 m 个数是模式串；1–26 依次表示 a–z。',
+  inputHint: '直接输入连续小写英文字母。主串 2–13 个字符，模式串 1–5 个字符。',
   defaultInput: [5, 1, 2, 1, 2, 3, 1, 2, 3, 1, 3, 2, 1, 2, 1, 2, 3, 1, 3],
   input: SPEC,
   code: {
@@ -102,29 +78,25 @@ export const bfMatch: AlgorithmMeta = {
     const steps: TraceStep[] = [];
     // 与 UI 校验共用同一条规则：不存在「校验通过但生成器回退默认串」的缝隙
     const src = validateInput(SPEC, input) ? FALLBACK : input;
-    const m = src[0];
-    const body = src.slice(1);
-    const S = body.slice(0, body.length - m).slice(0, 13).map(letter);
-    const T = body.slice(body.length - m).map(letter);
+    const [main, pattern] = decodeMatchInput(src);
+    const S = [...main];
+    const T = [...pattern];
+    const m = T.length;
     const n = S.length;
-    const off = n + 1;
     let i = 0;
     let j = 0;
     let compares = 0;
     let k = 0;
 
     const push = (anchor: string, phase: string, caption: string, states: Record<string, NodeState> = {}) => {
-      const nodes = [
-        ...S.map((c, x) => node(`s${x}`, c, states[`s${x}`] ?? 'default')),
-        node('gap', '|'),
-        ...T.map((c, x) => node(`t${x}`, c, states[`t${x}`] ?? 'default')),
-      ];
+      const mainNodes = S.map((c, x) => node(`s${x}`, c, states[`s${x}`] ?? 'default'));
+      const patternNodes = T.map((c, x) => node(`t${x}`, c, states[`t${x}`] ?? 'default'));
       steps.push(
         makeStep(
           k++,
           anchor,
           phase,
-          arrayScene(nodes, [{ label: 'i', index: i }, { label: 'j', index: off + j }], undefined, `主串 ${S.join('')}　模式串 ${T.join('')}`),
+          stringMatchScene(mainNodes, patternNodes, i - j, i, j, `主串 ${main} · 模式串 ${pattern}`),
           { i, j, 比较次数: compares, 主串长: n, 模式长: m },
           caption,
         ),

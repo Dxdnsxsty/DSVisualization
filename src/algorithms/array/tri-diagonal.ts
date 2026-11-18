@@ -113,7 +113,7 @@ export const triDiagonal: AlgorithmMeta = {
       }
       const pointers: ScenePointer[] = [];
       if (ci !== null) {
-        pointers.push({ label: 'i', index: ci * n });
+        pointers.push({ label: 'i', index: ci * n, axis: 'row' });
         if (cj !== null) pointers.push({ label: 'j', index: ci * n + cj });
       }
       const auxNodes = B.map((v, x) =>
@@ -127,6 +127,7 @@ export const triDiagonal: AlgorithmMeta = {
           {
             ...gridScene(nodes, n, pointers, `三对角矩阵 A（${n}×${n}）· 只有 |i-j| ≤ 1 的位置非零`),
             aux: { label: `一维数组 B（长度 ${total} = 3n-2）`, nodes: auxNodes, cols: total },
+            layout: 'matrix',
           },
           {
             i: ci === null ? '—' : ci,

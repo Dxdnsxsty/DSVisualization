@@ -1,6 +1,6 @@
-import { forwardRef, useLayoutEffect, useRef, useState } from 'react';
-import type { EdgeState, NodeState, Scene, SceneEdge } from '../engine/types';
-import { layoutGraph, layoutTree } from '../engine/layout';
+import { forwardRef, useId, useLayoutEffect, useRef, useState } from 'react';
+import type { EdgeState, ListLink, NodeState, Scene, SceneEdge } from '../engine/types';
+import { layoutGraph, layoutTree, type LayoutPoint } from '../engine/layout';
 
 const COLOR: Record<NodeState, { fill: string; stroke: string }> = {
   default: { fill: '#E6F1FB', stroke: '#85B7EB' },
@@ -63,7 +63,9 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
       </div>
       <div className="stage-viewport">
         <div className="stage-canvas" ref={canvasRef} onScroll={syncHint}>
-          {isTreeGraph ? <TreeGraphSvg scene={scene} /> : <LinearSvg scene={scene} />}
+          {isTreeGraph ? <TreeGraphSvg scene={scene} /> :
+            scene.layout === 'stack' ? <StackSvg scene={scene} /> :
+              scene.layout === 'ring-queue' ? <RingQueueSvg scene={scene} /> : <LinearSvg scene={scene} />}
         </div>
         {hintRight && <span className="scroll-hint" aria-hidden="true" />}
       </div>
@@ -88,6 +90,11 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
         </div>
       )}
       <div className="legend">
+        {scene.graphTrace ? <>
+          <span className="legend-item"><i style={{ background: COLOR.found.stroke }} />{scene.graphTrace === 'adjacency' ? '已挂接的方向' : '首次访问路径'}</span>
+          <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />{scene.graphTrace === 'adjacency' ? '已写入邻接表' : '已标记访问'}</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />正在考察或处理</span>
+        </> : <>
         {isTreeGraph
           ? [
               <span key="e-tree" className="legend-item">
@@ -110,13 +117,39 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
             {l.text}
           </span>
         ))}
+        </>}
       </div>
     </div>
   );
 });
 
+function SubtreeOutlines({ edges, points, focus }: {
+  edges: SceneEdge[]; points: Record<string, LayoutPoint>; focus: NonNullable<Scene['subtrees']>;
+}) {
+  const descendants = (id: string): LayoutPoint[] => [points[id], ...edges.filter((edge) => edge.from === id).flatMap((edge) => descendants(edge.to))];
+  const pad = NODE_R + 5;
+  return edges.filter((edge) => edge.from === focus.root && edge.side).map((edge) => {
+    const slots = descendants(edge.to);
+    const x = Math.min(...slots.map((point) => point.x)) - pad;
+    const y = Math.min(...slots.map((point) => point.y)) - pad;
+    const w = Math.max(...slots.map((point) => point.x)) + pad - x;
+    const h = Math.max(...slots.map((point) => point.y)) + pad - y;
+    const active = edge.side === focus.active;
+    const color = active ? 'var(--accent)' : 'var(--muted)';
+    const label = edge.side === 'left' ? 'L · 左子树' : 'R · 右子树';
+    return <g key={edge.to}>
+      <title>{label}</title>
+      <rect x={x} y={y} width={w} height={h} rx={8} fill={active ? 'var(--accent-soft)' : 'none'}
+        stroke={color} strokeWidth={active ? 2 : 1} strokeDasharray={active ? undefined : '4 3'} />
+      <text x={x + w / 2} y={y - 6} textAnchor="middle" fill={color} fontSize="12" fontWeight="600">{edge.side === 'left' ? 'L' : 'R'}</text>
+    </g>;
+  });
+}
+
 /** 树 / 图：圆形结点 + 带状态的边，坐标由 layout 统一给出。 */
 function TreeGraphSvg({ scene }: { scene: Scene }) {
+  const markerId = useId();
+  const markerUrl = (suffix: string) => `url(#${markerId}-${suffix})`;
   const edges: SceneEdge[] = scene.edges ?? [];
   const isTree = scene.kind === 'tree';
   const lay = isTree
@@ -131,45 +164,51 @@ function TreeGraphSvg({ scene }: { scene: Scene }) {
       aria-label="当前步骤的树 / 图状态"
     >
       <defs>
-        <marker id="dsv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id={`${markerId}-default`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M2 1L8 5L2 9" fill="none" stroke="#2C3E50" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
-        <marker id="dsv-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id={`${markerId}-blue`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M2 1L8 5L2 9" fill="none" stroke="#225EFC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
-        <marker id="dsv-arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id={`${markerId}-amber`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M2 1L8 5L2 9" fill="none" stroke="#F99000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
+        {scene.graphTrace && <marker id={`${markerId}-path`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke={COLOR.found.stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </marker>}
       </defs>
+
+      {isTree && scene.subtrees && <SubtreeOutlines edges={edges} points={lay.points} focus={scene.subtrees} />}
 
       {edges.map((e, i) => {
         const a = lay.points[e.from];
         const b = lay.points[e.to];
         if (!a || !b) return null;
         const st = e.state ?? 'default';
-        const stroke = EDGE_COLOR[st];
+        const markedPath = scene.graphTrace && st === 'tree';
+        const stroke = markedPath ? COLOR.found.stroke : EDGE_COLOR[st];
         const dashed = st === 'candidate' || st === 'reject';
         const marker =
-          e.directed || isTree
-            ? st === 'active'
-              ? 'url(#dsv-arrow-blue)'
-              : st === 'candidate'
-                ? 'url(#dsv-arrow-amber)'
-                : 'url(#dsv-arrow)'
+          e.directed || isTree || e.bidirectional
+            ? markerUrl(markedPath ? 'path' : st === 'active' ? 'blue' : st === 'candidate' ? 'amber' : 'default')
             : undefined;
+        const length = Math.hypot(b.x - a.x, b.y - a.y);
+        // 把路径箭头停在顶点外沿，避免箭头被后画的圆形顶点盖住。
+        const inset = markedPath && marker && length > 0 ? Math.min(NODE_R + 3, length / 3) / length : 0;
         const mx = (a.x + b.x) / 2;
         const my = (a.y + b.y) / 2;
         return (
           <g key={`${e.from}>${e.to}-${i}`}>
             <line
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
+              x1={a.x + (e.bidirectional ? (b.x - a.x) * inset : 0)}
+              y1={a.y + (e.bidirectional ? (b.y - a.y) * inset : 0)}
+              x2={b.x - (b.x - a.x) * inset}
+              y2={b.y - (b.y - a.y) * inset}
               stroke={stroke}
-              strokeWidth={st === 'active' ? 2.4 : 1.6}
+              strokeWidth={st === 'active' || markedPath ? 2.4 : 1.6}
               strokeDasharray={dashed ? '5 4' : undefined}
               markerEnd={marker}
+              markerStart={e.bidirectional ? marker : undefined}
               style={{ transition: 'stroke 300ms ease, stroke-width 300ms ease' }}
             />
             {e.label && (
@@ -195,7 +234,7 @@ function TreeGraphSvg({ scene }: { scene: Scene }) {
       {scene.nodes.map((n) => {
         const p = lay.points[n.id];
         if (!p) return null;
-        const c = COLOR[n.state ?? 'default'];
+        const c = scene.graphTrace && n.state === 'visited' ? COLOR.found : COLOR[n.state ?? 'default'];
         return (
           <g key={n.id} style={{ transform: `translate(${p.x}px, ${p.y}px)`, transition: 'transform 340ms cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
             <circle r={NODE_R} strokeWidth="1.4" style={{ fill: c.fill, stroke: c.stroke, transition: 'fill 200ms ease, stroke 200ms ease' }} />
@@ -225,51 +264,235 @@ function TreeGraphSvg({ scene }: { scene: Scene }) {
   );
 }
 
+function StackSvg({ scene }: { scene: Scene }) {
+  const width = 360;
+  const opening = 48;
+  const slotHeight = 32;
+  const slotWidth = 96;
+  const left = (width - slotWidth) / 2;
+  const right = left + slotWidth;
+  const wallGap = 6;
+  const capacity = scene.capacity ?? scene.nodes.length;
+  const bottom = opening + capacity * slotHeight;
+  const height = bottom + 42;
+  const top = scene.pointers?.[0]?.index ?? null;
+  const slotY = (index: number) => bottom - (index + 1) * slotHeight;
+  const topY = top === null ? null : slotY(top) + slotHeight / 2;
+
+  return (
+    <svg className="stack-svg" viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img"
+      aria-label={top === null ? `顺序栈，容量 ${capacity}，空栈，top 等于负一` : `顺序栈，容量 ${capacity}，栈顶下标 ${top}`}>
+      <text x={width / 2} y={26} textAnchor="middle" fontSize="13" fill="var(--muted)">↓ 入栈 · ↑ 出栈</text>
+      <text x={left - 25} y={opening - 7} textAnchor="middle" fontSize="11" fill="var(--muted)">下标</text>
+      <path d={`M${left - wallGap} ${opening} V${bottom} H${right + wallGap} V${opening}`}
+        fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {Array.from({ length: capacity }, (_, index) => {
+        const cell = scene.nodes[index];
+        const y = slotY(index);
+        const occupied = cell?.value !== undefined && cell.value !== '';
+        const color = COLOR[cell?.state ?? 'default'];
+        return <g key={cell?.id ?? index}>
+          <rect x={left} y={y + 2} width={slotWidth} height={slotHeight - 4} rx={4}
+            fill={occupied ? color.fill : 'none'} stroke={occupied ? color.stroke : 'var(--faint)'}
+            strokeDasharray={occupied ? undefined : '3 3'} />
+          <text x={left - 25} y={y + slotHeight / 2} dominantBaseline="central" textAnchor="middle"
+            fontSize="12" fontFamily="monospace" fill="var(--muted)">{index}</text>
+          {occupied && <text x={width / 2} y={y + slotHeight / 2} dominantBaseline="central" textAnchor="middle"
+            fontSize="15" fontFamily="monospace" fill="var(--text)">{cell.value}</text>}
+        </g>;
+      })}
+      {topY === null ? (
+        <text x={right + 24} y={bottom + 23} fontSize="12" fill="var(--muted)">top = -1（空栈）</text>
+      ) : (
+        <g>
+          <path d={`M${right + 38} ${topY} H${right + 3} m5 -4 l-5 4 5 4`}
+            fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <text x={right + 44} y={topY} dominantBaseline="central" fontSize="13" fill="var(--accent)">top = {top}</text>
+        </g>
+      )}
+      <text x={width / 2} y={bottom + 23} textAnchor="middle" fontSize="12" fill="var(--muted)">栈底</text>
+    </svg>
+  );
+}
+
+function RingQueueSvg({ scene }: { scene: Scene }) {
+  const markerId = useId();
+  const width = 420;
+  const height = 346;
+  const centerX = width / 2;
+  const centerY = 165;
+  const radius = 92;
+  const stepAngle = 2 * Math.PI / scene.nodes.length;
+  const point = (angle: number, distance: number) => ({
+    x: Math.round(centerX + Math.cos(angle) * distance),
+    y: Math.round(centerY + Math.sin(angle) * distance),
+  });
+  const marker = (suffix: string) => `url(#${markerId}-${suffix})`;
+
+  return (
+    <svg className="ring-queue-svg" viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label="循环队列，槽位顺时针排列">
+      <defs>
+        {['default', 'accent'].map((style) => (
+          <marker key={style} id={`${markerId}-${style}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M2 1L9 5L2 9" fill="none" stroke={style === 'accent' ? 'var(--accent)' : 'var(--muted)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </marker>
+        ))}
+      </defs>
+      {scene.nodes.map((node, index) => {
+        const angle = index * stepAngle - Math.PI / 2;
+        const slot = point(angle, radius);
+        const subscript = point(angle, radius - 36);
+        const start = point(angle + stepAngle * 0.32, radius);
+        const end = point(angle + stepAngle * 0.68, radius);
+        const isWrap = index === scene.nodes.length - 1;
+        const pointers = scene.pointers?.filter((pointer) => pointer.index === index).map((pointer) => pointer.label) ?? [];
+        const pointerStart = point(angle, radius + 41);
+        const pointerEnd = point(angle, radius + 25);
+        const label = point(angle, radius + 50);
+        const color = COLOR[node.state ?? 'default'];
+
+        return <g key={node.id}>
+          <path d={`M${start.x} ${start.y} A${radius} ${radius} 0 0 1 ${end.x} ${end.y}`} fill="none"
+            stroke={isWrap ? 'var(--accent)' : 'var(--muted)'} strokeWidth="1.5" markerEnd={marker(isWrap ? 'accent' : 'default')} />
+          <circle cx={slot.x} cy={slot.y} r={21}
+            fill={node.value === '' ? 'none' : color.fill} stroke={node.value === '' ? 'var(--faint)' : color.stroke}
+            strokeDasharray={node.value === '' ? '3 3' : undefined} />
+          <text x={slot.x} y={slot.y} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="var(--text)">{node.value}</text>
+          <text x={subscript.x} y={subscript.y} textAnchor="middle" dominantBaseline="central" fontSize="12" fontFamily="monospace" fill="var(--muted)">{index}</text>
+          {pointers.length > 0 && <g>
+            <path d={`M${pointerStart.x} ${pointerStart.y} L${pointerEnd.x} ${pointerEnd.y}`} fill="none" stroke="var(--accent)" strokeWidth="1.5" markerEnd={marker('accent')} />
+            <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="central" fontSize="12" fontFamily="monospace" fill="var(--accent)">{pointers.join(' · ')}</text>
+          </g>}
+        </g>;
+      })}
+      <text x={centerX} y={centerY} textAnchor="middle" dominantBaseline="central" fontSize="13" fill="var(--muted)">顺时针回绕</text>
+      <text x={centerX} y={height - 12} textAnchor="middle" fontSize="12" fill="var(--muted)">front 出队 · rear 入队</text>
+    </svg>
+  );
+}
+
+function ListArrows({ scene, links, x0, y, cellWidth, cellHeight, gap, arrow }: {
+  scene: Scene; links: ListLink[]; x0: number; y: number; cellWidth: number; cellHeight: number; gap: number; arrow: string;
+}) {
+  const indices = new Map(scene.nodes.map((node, index) => [node.id, index]));
+  const stepWidth = cellWidth + gap;
+  const bottom = y + cellHeight;
+  const doubly = links.some(({ field }) => field === 'prior');
+
+  return <g>
+    {doubly && <text x={x0} y={20} fontSize="12" fill="#5F5E5A">next → · ← prior</text>}
+    {links.map(({ from, to, field }) => {
+      const fromIndex = indices.get(from);
+      const toIndex = to === null ? undefined : indices.get(to);
+      if (fromIndex === undefined || (to !== null && toIndex === undefined)) return null;
+      const fromX = x0 + fromIndex * stepWidth;
+      const isPrior = field === 'prior';
+      const startX = fromX + cellWidth * (isPrior && to === null ? 0.28 : 0.72);
+      const title = `${scene.nodes[fromIndex].value}.${field} → ${toIndex === undefined ? 'NULL' : scene.nodes[toIndex].value}`;
+      let path: string;
+      if (toIndex === undefined) {
+        path = `M${startX} ${bottom + 3} V${bottom + gap}`;
+      } else {
+        const toX = x0 + toIndex * stepWidth;
+        const right = fromIndex < toIndex;
+        if (Math.abs(fromIndex - toIndex) === 1) {
+          const lineY = y + cellHeight * (doubly ? (isPrior ? 0.68 : 0.32) : 0.5);
+          path = right
+            ? `M${fromX + cellWidth + 3} ${lineY} H${toX - 3}`
+            : `M${fromX - 3} ${lineY} H${toX + cellWidth + 3}`;
+        } else {
+          const laneY = bottom + gap * (isPrior ? 3 : 2);
+          const endX = toX + cellWidth * 0.28;
+          path = `M${startX} ${bottom + 3} V${laneY} H${endX} V${bottom + 3}`;
+        }
+      }
+      return <g key={`${from}:${field}`}>
+        <title>{title}</title>
+        <path d={path} fill="none" stroke="#5F5E5A" strokeWidth="1.5" strokeLinejoin="round" markerEnd={arrow} />
+        {to === null && <text x={startX} y={bottom + gap + 14} textAnchor="middle" fontSize="11" fill="#5F5E5A" fontFamily="monospace">NULL</text>}
+      </g>;
+    })}
+  </g>;
+}
+
 /** 数组 / 链表：按固定步长排列；cols > 1 时折成二维网格（矩阵、哈希表）。 */
 function LinearSvg({ scene }: { scene: Scene }) {
-  const cw = 62;
-  const gap = 18;
-  const x0 = 34;
+  const arrowId = useId();
+  const arrow = `url(#${arrowId})`;
+  const stringMatch = scene.layout === 'string-match';
+  const cw = stringMatch ? 30 : 62;
+  const cellHeight = stringMatch ? 34 : 44;
+  const gap = stringMatch ? 3 : 18;
+  const x0 = scene.layout === 'matrix' ? 78 : stringMatch ? 62 : 34;
   const cols = scene.cols && scene.cols > 0 ? scene.cols : Math.max(scene.nodes.length, scene.capacity ?? 0, 1);
   const rows = Math.max(1, Math.ceil(scene.nodes.length / cols));
   const grid = rows > 1;
-  const rowH = 104;
+  const rowH = stringMatch ? 78 : 104;
   const y0 = grid ? 46 : 76;
   const height = grid ? 46 + rows * rowH : 200;
   const width = Math.max(560, x0 * 2 + cols * (cw + gap));
   const detached = new Set(scene.detached ?? []);
   const nullPointers = (scene.pointers ?? []).filter((p) => p.index === null).map((p) => p.label);
   const isList = scene.kind === 'list';
+  const isCircular = isList && scene.circular;
+  const listLinks = isList ? scene.listLinks : undefined;
   const showIndex = !grid;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="当前步骤的数据结构状态">
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label={isCircular ? '循环链表，尾结点指回首结点' : '当前步骤的数据结构状态'}>
       <defs>
-        <marker id="dsv-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id={arrowId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
       </defs>
 
+      {listLinks && <ListArrows scene={scene} links={listLinks} x0={x0} y={y0} cellWidth={cw} cellHeight={cellHeight} gap={gap} arrow={arrow} />}
+      {listLinks && nullPointers.length > 0 && (
+        <text x={scene.nodes.length > 0 ? width - x0 : x0} y={scene.nodes.length > 0 ? 20 : y0 + 27}
+          textAnchor={scene.nodes.length > 0 ? 'end' : 'start'} fontSize="12" fill="#3C3489" fontFamily="monospace">
+          {nullPointers.map((pointer) => `${pointer} → NULL`).join(' · ')}
+        </text>
+      )}
+      {stringMatch && ['主串', '模式串'].map((label, index) => (
+        <text key={label} x={x0 - 10} y={y0 + index * rowH + cellHeight / 2} textAnchor="end"
+          dominantBaseline="central" fontSize="12" fill="var(--muted)">{label}</text>
+      ))}
+
       {scene.nodes.map((n, idx) => {
+        if (stringMatch && n.value === '') return null;
         const r = Math.floor(idx / cols);
         const c = idx % cols;
         const x = x0 + c * (cw + gap);
         const y = y0 + r * rowH;
         const col = COLOR[n.state ?? 'default'];
         const isDetached = detached.has(n.id);
-        const labels = (scene.pointers ?? []).filter((p) => p.index === idx).map((p) => p.label);
+        const closesLoop = isCircular && idx === scene.nodes.length - 1;
+        const nextLink = `M${cw + 3} ${cellHeight / 2} H${cw + gap - 3}`;
+        const firstCellCenter = x0 + cw / 2 - x;
+        const firstCellBottom = y0 + cellHeight - y;
+        const pointers = (scene.pointers ?? []).filter((p) => p.index === idx);
+        const labels = pointers.filter((p) => p.axis !== 'row').map((p) => p.label);
+        const rowPointer = pointers.find((p) => p.axis === 'row');
         return (
-          <g key={n.id} style={{ transform: `translate(${x}px, ${y}px)`, transition: 'transform 340ms cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
+          <g key={n.id} style={{
+            transform: `translate(${x}px, ${y}px)`,
+            // 明确连线和结点位置在同一帧更新，避免箭头暂时指向错误结点。
+            transition: listLinks ? undefined : 'transform 340ms cubic-bezier(0.22, 0.8, 0.2, 1)',
+          }}>
             {labels.length > 0 && (
               <text x={cw / 2} y={-30} textAnchor="middle" fontSize="12" fill="#3C3489" fontFamily="monospace">
                 {labels.join(' ')}
               </text>
             )}
             {labels.length > 0 && (
-              <path d={`M${cw / 2} -26 V-6`} fill="none" stroke="#534AB7" strokeWidth="1" markerEnd="url(#dsv-arrow)" />
+              <path d={`M${cw / 2} -26 V-6`} fill="none" stroke="#534AB7" strokeWidth="1" markerEnd={arrow} />
             )}
-            <rect x={0} y={0} width={cw} height={44} rx={8} strokeWidth="1" style={{ fill: col.fill, stroke: col.stroke, transition: 'fill 200ms ease, stroke 200ms ease' }} />
-            <text x={cw / 2} y={23} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="#2C2C2A">
+            {rowPointer && <g>
+              <text x={-28} y={cellHeight / 2} textAnchor="end" dominantBaseline="central" fontSize="12" fill="#3C3489" fontFamily="monospace">{rowPointer.label} = {r}</text>
+              <path d={`M-24 ${cellHeight / 2} H-4`} fill="none" stroke="#534AB7" strokeWidth="1.5" markerEnd={arrow} />
+            </g>}
+            <rect x={0} y={0} width={cw} height={cellHeight} rx={8} strokeWidth="1" style={{ fill: col.fill, stroke: col.stroke, transition: 'fill 200ms ease, stroke 200ms ease' }} />
+            <text x={cw / 2} y={cellHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="#2C2C2A">
               {n.value}
             </text>
             {showIndex && (
@@ -287,23 +510,26 @@ function LinearSvg({ scene }: { scene: Scene }) {
                 {n.label}
               </text>
             )}
-            {isList && (
+            {isList && !listLinks && (
               <path
-                d={`M${cw + 3} 22 H${cw + gap - 3}`}
+                d={closesLoop
+                  ? `${nextLink} V${cellHeight + gap * 2} H${firstCellCenter} V${firstCellBottom + 3}`
+                  : nextLink}
                 fill="none"
                 stroke={isDetached ? '#B4B2A9' : '#5F5E5A'}
                 strokeWidth="1.5"
                 strokeDasharray={isDetached ? '3 3' : undefined}
-                markerEnd={isDetached ? undefined : 'url(#dsv-arrow)'}
+                strokeLinejoin="round"
+                markerEnd={isDetached ? undefined : arrow}
               />
             )}
           </g>
         );
       })}
 
-      {isList && scene.nodes.length > 0 && (
+      {isList && !listLinks && scene.nodes.length > 0 && (
         <g>
-          <text x={x0 + scene.nodes.length * (cw + gap) + 2} y={y0 + 27} fontSize="12" fill="#5F5E5A" fontFamily="monospace">NULL</text>
+          {!isCircular && <text x={x0 + scene.nodes.length * (cw + gap) + 2} y={y0 + 27} fontSize="12" fill="#5F5E5A" fontFamily="monospace">NULL</text>}
           {nullPointers.length > 0 && (
             <text x={x0 + scene.nodes.length * (cw + gap) + 2} y={y0 - 30} fontSize="12" fill="#3C3489" fontFamily="monospace">
               {nullPointers.join(' ')} → NULL
@@ -311,7 +537,7 @@ function LinearSvg({ scene }: { scene: Scene }) {
           )}
         </g>
       )}
-      {isList && scene.nodes.length === 0 && (
+      {isList && !listLinks && scene.nodes.length === 0 && (
         <g>
           <text x={x0} y={y0 + 27} fontSize="14" fill="#5F5E5A" fontFamily="monospace">head → NULL</text>
         </g>

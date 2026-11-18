@@ -27,8 +27,9 @@ export function nodeAt(
   y?: number,
   state: NodeState = 'default',
   label?: string,
+  badge?: string,
 ): SceneNode {
-  const n = node(id, value, state, label);
+  const n = node(id, value, state, label, badge);
   if (x !== undefined && y !== undefined) n.at = { x, y };
   return n;
 }
@@ -69,6 +70,21 @@ export function listScene(
   detached: string[] = [],
 ): Scene {
   return { kind: 'list', nodes, pointers, note, detached };
+}
+
+export function stringMatchScene(main: SceneNode[], pattern: SceneNode[], offset: number, i: number, j: number, note: string): Scene {
+  const cols = Math.max(main.length, offset) + pattern.length;
+  const blanks = (prefix: string, count: number) => Array.from({ length: count }, (_, index) => node(`${prefix}${index}`, ''));
+  return {
+    ...gridScene([
+      ...main, ...blanks('main-gap', cols - main.length),
+      ...blanks('pattern-before', offset), ...pattern, ...blanks('pattern-after', cols - offset - pattern.length),
+    ], cols, [
+      { label: 'i', index: i < main.length ? i : null },
+      { label: 'j', index: j >= 0 && j < pattern.length ? cols + offset + j : null },
+    ], note),
+    layout: 'string-match',
+  };
 }
 
 export function treeScene(nodes: SceneNode[], edges: SceneEdge[], note?: string): Scene {

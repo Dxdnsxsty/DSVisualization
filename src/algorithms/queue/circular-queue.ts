@@ -117,15 +117,18 @@ export const circularQueue: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          arrayScene(
-            Array.from({ length: CAP }, (_, i) => node(`q${i}`, data[i] ?? '', states[i] ?? 'default')),
-            [
-              { label: 'front', index: front },
-              { label: 'rear', index: rear },
-            ],
-            CAP,
-            `容量 ${CAP}，牺牲一格，最多存 ${MAXE} 个 · 当前 ${count()} 个`,
-          ),
+          {
+            ...arrayScene(
+              Array.from({ length: CAP }, (_, i) => node(`q${i}`, data[i] ?? '', states[i] ?? 'default')),
+              [
+                { label: 'front', index: front },
+                { label: 'rear', index: rear },
+              ],
+              CAP,
+              `容量 ${CAP}，牺牲一格，最多存 ${MAXE} 个 · 当前 ${count()} 个`,
+            ),
+            layout: 'ring-queue',
+          },
           { front, rear, 元素个数: count(), 最多可存: MAXE, ...extra },
           caption,
         ),
@@ -170,7 +173,8 @@ export const circularQueue: AlgorithmMeta = {
       push('dequeue', '出队', `取走队头 Q[${front}] = ${v}，随后 front 后移一格。`, { [front]: 'delete' }, { 出队值: String(v ?? '') });
       data[front] = null;
       front = (front + 1) % CAP;
-      push('dequeue', '指针后移', `front 变成 ${front}，队列还剩 ${count()} 个元素。`, {}, { 出队值: String(v ?? '') });
+      const movement = front === 0 ? `front 从 ${CAP - 1} 取模回到 0` : `front 后移到 ${front}`;
+      push('dequeue', '指针后移', `${movement}，队列还剩 ${count()} 个元素。`, {}, { 出队值: String(v ?? '') });
     };
 
     push('init', '初始化', 'front = rear = 0，队列为空：空队列的标志就是两个指针重合。');
