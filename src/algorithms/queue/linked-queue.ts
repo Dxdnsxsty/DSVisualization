@@ -109,7 +109,7 @@ export const linkedQueue: AlgorithmMeta = {
   generate: (input) => {
     const steps: TraceStep[] = [];
     const ok = input.length >= 2 && input.slice(0, 3).every((v) => Number.isFinite(v));
-    const vals = (ok ? input : [8, 3, 6]).slice(0, 3).map((v) => Math.abs(Math.trunc(v)) % 100);
+    const vals = (ok ? input : [8, 3, 6]).slice(0, 3);
 
     const values: Record<string, number> = {};
     const queue: string[] = [];

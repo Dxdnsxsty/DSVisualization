@@ -11,6 +11,8 @@ import { pathToFileURL } from 'node:url';
 import { checkAlgorithm } from './assertions.mjs';
 import { checkSortMetrics } from './sort-metrics.mjs';
 import { checkComparisonPlayback } from './comparison-playback.mjs';
+import { checkStackQueue } from './stack-queue.mjs';
+import { checkPlayerRoute } from './player-route.mjs';
 
 const result = await build({
   entryPoints: ['src/algorithms/registry.ts'],
@@ -47,6 +49,7 @@ try {
   }
   errors.push(...checkSortMetrics(mod.algorithms));
   errors.push(...await checkComparisonPlayback());
+  errors.push(...checkStackQueue(mod.algorithms), ...await checkPlayerRoute());
 
   if (errors.length > 0) {
     console.error('\n校验未通过：');

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, type RefObject } from 'react';
+import { useLayoutEffect, type RefObject } from 'react';
 import { getAlgorithm } from '../algorithms/registry';
 import { usePlayer } from '../engine/player';
 import { restoreScroll } from '../engine/scroll';
@@ -20,8 +20,6 @@ interface Props {
 export function AlgorithmPage({ slug, stageRef, onFullscreen, mobileTab, onNavigate }: Props) {
   const algo = getAlgorithm(slug);
   const p = usePlayer();
-
-  useEffect(() => { p.load(slug); }, [slug]); // 切换算法时重新生成 Trace
 
   // 绘制前恢复滚动位置：配合 Catalog 里的 rememberScroll，连点算法时页面不跳回顶部
   useLayoutEffect(() => { restoreScroll(); }, [slug]);

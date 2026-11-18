@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { navigate, useRoute } from './engine/router';
 import { usePlayer } from './engine/player';
+import { completedPlayerSlug, schedulePlayerAdvance, syncPlayerRoute } from './engine/player-route';
 import { clearScroll } from './engine/scroll';
 import { AlgorithmPage } from './pages/AlgorithmPage';
-import { LabPage, MapPage } from './components/Placeholder';
+import { MapPage } from './components/Placeholder';
 import { ComparePage } from './pages/ComparePage';
 import { PracticeLab } from './pages/PracticeLab';
 import { markLearned } from './components/Catalog';
@@ -23,6 +24,7 @@ export default function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<MobileTab>('stage');
   const slug = route.name === 'algo' ? route.slug : '';
+  const replay = route.name === 'algo' ? route.replay : undefined;
 
   // 跨页跳转（地图 ↔ 算法页 ↔ 实验室）回到顶部；
   // 同一页内连续换算法不算跨页，交给 scroll.ts 保留原位置，避免每次都要重新往下翻。
@@ -42,29 +44,22 @@ export default function App() {
     else void el.requestFullscreen?.();
   };
 
-  // 切换算法：重新生成 Trace
-  useEffect(() => { if (slug) p.load(slug); }, [slug]);
+  useLayoutEffect(() => { syncPlayerRoute(slug, replay); }, [slug, replay]);
 
-  // 播放调度：单次可取消的 setTimeout，暂停 / 拖进度会立即中断当前等待
-  useEffect(() => {
-    if (!p.playing || p.trace.length === 0) return;
-    if (p.step >= p.trace.length - 1) { p.setPlaying(false); return; }
-    const ms = Math.max(120, 760 / p.speed);
-    const timer = window.setTimeout(() => p.next(), ms);
-    return () => window.clearTimeout(timer);
-  }, [p.playing, p.step, p.speed, p.trace.length]);
+  useEffect(() => schedulePlayerAdvance(slug), [slug, p.slug, p.playing, p.step, p.speed, p.trace]);
 
   // 播放到末尾即标记「已学」，只写浏览器本地，不涉及账号
   useEffect(() => {
-    if (slug && p.trace.length > 0 && p.step === p.trace.length - 1) markLearned(slug);
-  }, [slug, p.step, p.trace.length]);
+    const completed = completedPlayerSlug(slug);
+    if (completed) markLearned(completed);
+  }, [slug, p.slug, p.step, p.trace]);
 
   // 键盘快捷键（每次渲染重新绑定，确保闭包里拿到最新状态）
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
-      if (route.name !== 'algo') return;
+      if (route.name !== 'algo' || route.slug !== p.slug) return;
       switch (e.key) {
         case ' ': e.preventDefault(); p.toggle(); break;
         case 'ArrowLeft': e.preventDefault(); p.prev(); break;
@@ -90,7 +85,7 @@ export default function App() {
           <button className={route.name === 'map' ? 'active' : ''} onClick={() => navigate('map')}>算法地图</button>
           <button className={route.name === 'algo' ? 'active' : ''} onClick={() => navigate('algo/sort/select-sort')}>可视化</button>
           <button className={route.name === 'compare' ? 'active' : ''} onClick={() => navigate('compare')}>算法对比</button>
-          <button className={route.name === 'lab' ? 'active' : ''} onClick={() => navigate('lab')}>代码实验室</button>
+          <button className={route.name === 'lab' ? 'active' : ''} onClick={() => navigate('lab')}>练习中心</button>
         </nav>
         <div className="topright">
           <span className="top-hint">开源 · 无登录 · 无后端</span>

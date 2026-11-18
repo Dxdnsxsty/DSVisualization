@@ -83,7 +83,7 @@ export const seqStack: AlgorithmMeta = {
   generate: (input) => {
     const steps: TraceStep[] = [];
     const ok = input.length >= 3 && input.slice(0, 3).every((v) => Number.isFinite(v));
-    const vals = (ok ? input : [3, 8, 5]).slice(0, 3).map((v) => Math.abs(Math.trunc(v)) % 100);
+    const vals = (ok ? input : [3, 8, 5]).slice(0, 3);
     const data: (number | null)[] = Array.from({ length: CAP }, () => null);
     let top = -1;
     let k = 0;

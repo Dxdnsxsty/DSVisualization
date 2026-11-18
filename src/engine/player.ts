@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { TraceStep } from './types';
 import { getAlgorithm } from '../algorithms/registry';
+import { DEFAULT_INPUT, validateInput } from './input';
+import type { AlgorithmReplay } from './router';
 
 interface PlayerState {
   slug: string;
@@ -10,7 +12,7 @@ interface PlayerState {
   playing: boolean;
   speed: number;
   lang: string;
-  load: (slug: string) => void;
+  load: (slug: string, replay?: AlgorithmReplay) => void;
   regenerate: (input: number[]) => void;
   setStep: (n: number) => void;
   next: () => void;
@@ -32,10 +34,18 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   speed: 1,
   lang: 'cpp',
 
-  load: (slug) => {
-    if (get().slug === slug && get().trace.length > 0) return;
+  load: (slug, replay) => {
+    const current = get();
     const algo = getAlgorithm(slug);
     if (!algo) return;
+    if (replay && !validateInput(algo.input ?? DEFAULT_INPUT, replay.input)) {
+      const trace = algo.generate(replay.input);
+      if (Number.isSafeInteger(replay.step) && replay.step >= 0 && replay.step < trace.length) {
+        set({ slug, input: replay.input, trace, step: replay.step, playing: false, lang: current.slug === slug ? current.lang : 'cpp' });
+        return;
+      }
+    }
+    if (current.slug === slug && current.trace.length > 0) return;
     set({
       slug,
       input: algo.defaultInput,

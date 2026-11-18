@@ -1,26 +1,49 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { algorithms, categories, getAlgorithm } from '../algorithms/registry';
 import { navigate } from '../engine/router';
 import { usePlayer } from '../engine/player';
 import { rememberScroll } from '../engine/scroll';
 
 const KEY = 'dsv-learned';
+const LEARNED_CHANGE = 'dsv-learned-change';
 
-export function readLearned(): string[] {
-  try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') as string[]; } catch { return []; }
+function learnedSnapshot(): string {
+  try { return localStorage.getItem(KEY) ?? '[]'; } catch { return '[]'; }
+}
+
+function parseLearned(snapshot: string): string[] {
+  try {
+    const slugs: unknown = JSON.parse(snapshot);
+    return Array.isArray(slugs) ? slugs.filter((slug): slug is string => typeof slug === 'string') : [];
+  } catch { return []; }
+}
+
+function subscribeLearned(listener: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === KEY || event.key === null) listener();
+  };
+  window.addEventListener(LEARNED_CHANGE, listener);
+  window.addEventListener('storage', onStorage);
+  return () => {
+    window.removeEventListener(LEARNED_CHANGE, listener);
+    window.removeEventListener('storage', onStorage);
+  };
 }
 
 export function markLearned(slug: string): void {
   try {
-    const set = new Set(readLearned());
+    const set = new Set(parseLearned(learnedSnapshot()));
+    if (set.has(slug)) return;
     set.add(slug);
     localStorage.setItem(KEY, JSON.stringify([...set]));
+    window.dispatchEvent(new Event(LEARNED_CHANGE));
   } catch { /* 隐私模式下 localStorage 不可用，忽略即可 */ }
 }
 
 export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNavigate?: () => void }) {
   const [query, setQuery] = useState('');
-  const learned = new Set(readLearned());
+  const snapshot = useSyncExternalStore(subscribeLearned, learnedSnapshot, () => '[]');
+  const learned = new Set(parseLearned(snapshot));
   const q = query.trim().toLowerCase();
 
   return (

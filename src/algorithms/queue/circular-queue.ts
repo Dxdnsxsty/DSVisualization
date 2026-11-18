@@ -13,7 +13,7 @@ export const circularQueue: AlgorithmMeta = {
   summary: '取模回绕：front==rear 判队空。',
   complexity: { time: 'O(1)', space: 'O(1)', extra: '牺牲一个单元区分队空与队满' },
   difficulty: '入门',
-  inputHint: '输入 5 个整数依次入队，演示队满、rear 从 5 回绕到 0、出队直到队空。',
+  inputHint: '输入 3–5 个整数依次入队。不足 5 个时用示例值填满，再演示队满、回绕和队空。',
   defaultInput: [4, 7, 9, 2, 6],
   input: { min: -999, max: 999, minLen: 3, maxLen: 5 },
   code: {
@@ -95,10 +95,7 @@ export const circularQueue: AlgorithmMeta = {
     const steps: TraceStep[] = [];
     const base = [4, 7, 9, 2, 6];
     const ok = input.length >= 3 && input.slice(0, 5).every((v) => Number.isFinite(v));
-    const raw = ok ? input.slice(0, 5) : base;
-    const vals = Array.from({ length: MAXE }, (_, i) =>
-      raw[i] === undefined ? base[i] : Math.abs(Math.trunc(raw[i])) % 100,
-    );
+    const vals = ok ? input.slice(0, MAXE) : base;
     const data: (number | null)[] = Array.from({ length: CAP }, () => null);
     let front = 0;
     let rear = 0;
@@ -135,7 +132,7 @@ export const circularQueue: AlgorithmMeta = {
       );
     };
 
-    const enqueue = (x: number): boolean => {
+    const enqueue = (x: number, demo?: '填满队列' | '演示回绕'): boolean => {
       if ((rear + 1) % CAP === front) {
         push(
           'full',
@@ -147,7 +144,8 @@ export const circularQueue: AlgorithmMeta = {
         return false;
       }
       data[rear] = x;
-      push('enqueue', '入队', `判满通过，把 ${x} 写入 Q[${rear}]，该位置原先是空的。`, { [rear]: 'insert' }, { 待入队: x });
+      push('enqueue', '入队', `${demo ? `为${demo}，补充示例值 ${x}。` : ''}判满通过，把 ${x} 写入 Q[${rear}]。`,
+        { [rear]: 'insert' }, { 待入队: x, ...(demo ? { 来源: '演示补充' } : {}) });
       const old = rear;
       rear = (rear + 1) % CAP;
       if (rear === 0) {
@@ -179,9 +177,10 @@ export const circularQueue: AlgorithmMeta = {
 
     push('init', '初始化', 'front = rear = 0，队列为空：空队列的标志就是两个指针重合。');
     vals.forEach((v) => enqueue(v));
+    base.slice(vals.length).forEach((v) => enqueue(v, '填满队列'));
     enqueue(88);
     dequeue();
-    enqueue(66);
+    enqueue(66, '演示回绕');
     dequeue();
     dequeue();
     while (front !== rear) dequeue();
