@@ -99,6 +99,8 @@ export const mergeSort: AlgorithmMeta = {
     const steps: TraceStep[] = [];
     let k = 0;
     let comparisons = 0;
+    let mainWrites = 0;
+    let auxiliaryWrites = 0;
     let allSorted = false;
 
     const push = (
@@ -136,6 +138,7 @@ export const mergeSort: AlgorithmMeta = {
           stack.length ? [...stack] : undefined,
         ),
       );
+      steps[steps.length - 1].metrics = { comparisons, swaps: 0, writes: mainWrites + auxiliaryWrites, auxiliaryWrites };
     };
 
     const ms = (l: number, r: number, stack: string[]): void => {
@@ -179,11 +182,13 @@ export const mergeSort: AlgorithmMeta = {
         if (arr[i] <= arr[j]) {
           const v = arr[i];
           auxVal[t] = v;
+          auxiliaryWrites += 1;
           push('writeAux', '写入辅助数组', `左段 ${v} 不大于右段队首，写入辅助数组下标 ${t}，i 右移。`, { [i]: 'insert' }, stack, { l, r, mid });
           i += 1;
         } else {
           const v = arr[j];
           auxVal[t] = v;
+          auxiliaryWrites += 1;
           push('writeAux', '写入辅助数组', `右段 ${v} 更小，写入辅助数组下标 ${t}，j 右移。`, { [j]: 'insert' }, stack, { l, r, mid });
           j += 1;
         }
@@ -192,6 +197,7 @@ export const mergeSort: AlgorithmMeta = {
       while (i <= mid) {
         const v = arr[i];
         auxVal[t] = v;
+        auxiliaryWrites += 1;
         push('writeAux', '搬走剩余元素', `右段已取完，把左段剩余的 ${v} 写入辅助数组下标 ${t}。`, { [i]: 'insert' }, stack, { l, r, mid });
         i += 1;
         t += 1;
@@ -199,6 +205,7 @@ export const mergeSort: AlgorithmMeta = {
       while (j <= r) {
         const v = arr[j];
         auxVal[t] = v;
+        auxiliaryWrites += 1;
         push('writeAux', '搬走剩余元素', `左段已取完，把右段剩余的 ${v} 写入辅助数组下标 ${t}。`, { [j]: 'insert' }, stack, { l, r, mid });
         j += 1;
         t += 1;
@@ -206,6 +213,7 @@ export const mergeSort: AlgorithmMeta = {
 
       for (let x = l; x <= r; x++) {
         arr[x] = auxVal[x] as number;
+        mainWrites += 1;
         push('copyBack', '写回主数组', `把辅助数组下标 ${x} 的 ${auxVal[x]} 写回 A[${x}]，区间 [${l}, ${r}] 已有序。`, { [x]: 'insert' }, stack, { l, r, mid });
       }
 

@@ -102,6 +102,7 @@ export const shellSort: AlgorithmMeta = {
     for (let d = Math.floor(n / 2); d >= 1; d = Math.floor(d / 2)) gaps.push(d);
 
     let comparisons = 0;
+    let writes = 0;
     let k = 0;
 
     const push = (
@@ -131,6 +132,7 @@ export const shellSort: AlgorithmMeta = {
         { 增量: d, i, j, temp: temp === null ? '—' : temp, 比较次数: comparisons },
         caption,
       ));
+      steps[steps.length - 1].metrics = { comparisons, swaps: 0, writes };
     };
 
     push('init', '初始化', `共 ${n} 个元素，增量序列为 ${gaps.join(' → ')}；d > 1 时组内插入，d = 1 时退化为直接插入排序。`, {}, -1, -1, gaps[0], null);
@@ -150,11 +152,13 @@ export const shellSort: AlgorithmMeta = {
           if (!bigger) break;
           const from = j;
           arr[from + d] = arr[from];
+          writes += 1;
           push('move', '组内后移', `A[${from + d}] = A[${from}] = ${arr[from]}，${from} 号位置变成空位，j 减到 ${from - d}。`, { [from]: 'active', [from + d]: 'insert' }, i, from, d, temp);
           j -= d;
         }
 
         arr[j + d] = temp;
+        writes += 1;
         push('place', '插入就位', `temp = ${temp} 写入下标 ${j + d}，这一组重新有序，i 继续后移。`, { [j + d]: 'insert' }, i, j + d, d, null);
       }
     }

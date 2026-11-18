@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { checkAlgorithm } from './assertions.mjs';
+import { checkSortMetrics } from './sort-metrics.mjs';
+import { checkComparisonPlayback } from './comparison-playback.mjs';
 
 const result = await build({
   entryPoints: ['src/algorithms/registry.ts'],
@@ -43,6 +45,8 @@ try {
       if (!slugs.has(s)) errors.push(`章节 ${c.id} 引用了不存在的算法 ${s}`);
     }
   }
+  errors.push(...checkSortMetrics(mod.algorithms));
+  errors.push(...await checkComparisonPlayback());
 
   if (errors.length > 0) {
     console.error('\n校验未通过：');

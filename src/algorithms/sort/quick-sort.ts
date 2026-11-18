@@ -84,6 +84,8 @@ export const quickSort: AlgorithmMeta = {
     const final = new Set<number>();
     const steps: TraceStep[] = [];
     let k = 0;
+    let comparisons = 0;
+    let writes = 0;
 
     const push = (
       anchor: string,
@@ -116,6 +118,7 @@ export const quickSort: AlgorithmMeta = {
           stack.length ? [...stack] : undefined,
         ),
       );
+      steps[steps.length - 1].metrics = { comparisons, swaps: 0, writes };
     };
 
     const qs = (s: number, t: number, stack: string[]): void => {
@@ -141,29 +144,42 @@ export const quickSort: AlgorithmMeta = {
       push('pivot', '选定枢轴', `取 A[${s}] = ${tmp} 作枢轴，位置 ${s} 成为第一个「坑」。`, { [s]: 'min' }, stack, { lo: s, hi: t, pivot: tmp, i, j });
 
       while (i < j) {
-        while (i < j && arr[j] >= tmp) {
+        while (i < j) {
+          comparisons += 1;
+          if (arr[j] < tmp) {
+            push('scanR', '右指针左扫', `A[${j}] = ${arr[j]} < 枢轴 ${tmp}，找到可填入左坑的值，停止右扫描。`, { [j]: 'compare', [s]: 'min' }, stack, { lo: s, hi: t, pivot: tmp, i, j });
+            break;
+          }
           push('scanR', '右指针左扫', `A[${j}] = ${arr[j]} ≥ 枢轴 ${tmp}，不是要填坑的值，j 左移到 ${j - 1}。`, { [j]: 'compare', [s]: 'min' }, stack, { lo: s, hi: t, pivot: tmp, i, j });
           j -= 1;
         }
         if (i < j) {
           const v = arr[j];
           arr[i] = v;
+          writes += 1;
           push('moveR', '填入左坑', `A[${j}] = ${v} < 枢轴 ${tmp}，填进左坑 A[${i}]，i 右移，坑转到 ${j}。`, { [i]: 'insert', [j]: 'min' }, stack, { lo: s, hi: t, pivot: tmp, i, j });
           i += 1;
         }
-        while (i < j && arr[i] <= tmp) {
+        while (i < j) {
+          comparisons += 1;
+          if (arr[i] > tmp) {
+            push('scanL', '左指针右扫', `A[${i}] = ${arr[i]} > 枢轴 ${tmp}，找到可填入右坑的值，停止左扫描。`, { [i]: 'compare', [s]: 'min' }, stack, { lo: s, hi: t, pivot: tmp, i, j });
+            break;
+          }
           push('scanL', '左指针右扫', `A[${i}] = ${arr[i]} ≤ 枢轴 ${tmp}，留在左边即可，i 右移到 ${i + 1}。`, { [i]: 'compare', [s]: 'min' }, stack, { lo: s, hi: t, pivot: tmp, i, j });
           i += 1;
         }
         if (i < j) {
           const v = arr[i];
           arr[j] = v;
+          writes += 1;
           push('moveL', '填入右坑', `A[${i}] = ${v} > 枢轴 ${tmp}，填进右坑 A[${j}]，j 左移，坑转到 ${i}。`, { [i]: 'min', [j]: 'insert' }, stack, { lo: s, hi: t, pivot: tmp, i, j });
           j -= 1;
         }
       }
 
       arr[i] = tmp;
+      writes += 1;
       final.add(i);
       push('place', '枢轴就位', `i 与 j 在 ${i} 相遇，写入枢轴 ${tmp}，它的最终位置确定为 ${i}。`, { [i]: 'sorted' }, stack, { lo: s, hi: t, pivot: tmp, i, j });
 

@@ -82,6 +82,7 @@ export const bubbleSort: AlgorithmMeta = {
       );
     const push = (anchor: string, phase: string, caption: string, states: Record<string, NodeState> = {}, extra: Record<string, string | number> = {}) => {
       steps.push(makeStep(k++, anchor, phase, snapshot(states), { 比较次数: comparisons, 交换次数: swaps, ...extra }, caption));
+      steps[steps.length - 1].metrics = { comparisons, swaps, writes: swaps * 2 };
     };
 
     for (let i = 0; i < n - 1; i++) {

@@ -77,6 +77,7 @@ export const insertSort: AlgorithmMeta = {
     let k = 0;
     let comparisons = 0;
     let moves = 0;
+    let writes = 0;
     let sortedCount = 1;
 
     const push = (
@@ -111,6 +112,7 @@ export const insertSort: AlgorithmMeta = {
           caption,
         ),
       );
+      steps[steps.length - 1].metrics = { comparisons, swaps: 0, writes };
     };
 
     push('init', '初始化', 'A[0] 自成一个有序区，从下标 1 开始逐个把元素插入有序区。', {}, null, 0, -1);
@@ -138,6 +140,7 @@ export const insertSort: AlgorithmMeta = {
           const from = j;
           arr[from + 1] = arr[from];
           moves += 1;
+          writes += 1;
           j -= 1;
           push('move', '后移一格', `A[${from}] = ${arr[from]} 复制到 A[${from + 1}]，A[${from}] 成为待填的空位，j 左移到 ${j}。`, { [from]: 'active', [from + 1]: 'insert' }, temp, i, j);
         } else {
@@ -145,6 +148,7 @@ export const insertSort: AlgorithmMeta = {
         }
       }
       arr[j + 1] = temp;
+      writes += 1;
       sortedCount = i + 1;
       push('place', '插入就位', `把 temp = ${temp} 写入下标 ${j + 1}，有序区扩大到 0 ~ ${i}。`, { [j + 1]: 'insert' }, null, i, j);
     }

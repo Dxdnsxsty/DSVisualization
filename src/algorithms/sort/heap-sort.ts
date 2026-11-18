@@ -79,6 +79,8 @@ export const heapSort: AlgorithmMeta = {
     const ids = vals.map((_, i) => `h${i}`);
     const steps: TraceStep[] = [];
     let k = 0;
+    let comparisons = 0;
+    let swaps = 0;
     const sortedTail = new Set<number>();
     const heapSize = { v: n };
 
@@ -103,6 +105,7 @@ export const heapSort: AlgorithmMeta = {
           caption,
         ),
       );
+      steps[steps.length - 1].metrics = { comparisons, swaps, writes: swaps * 2 };
     };
 
     const siftDown = (start: number, limit: number) => {
@@ -111,12 +114,15 @@ export const heapSort: AlgorithmMeta = {
       while (j < limit) {
         let big = j;
         if (j + 1 < limit) {
+          comparisons += 1;
           push('pickchild', '比较左右孩子', `结点 a[${i}]=${vals[i]} 的左右孩子是 ${vals[j]} 与 ${vals[j + 1]}，选出较大的那个。`, { [i]: 'active', [j]: 'compare', [j + 1]: 'compare' });
           if (vals[j] < vals[j + 1]) big = j + 1;
         }
+        comparisons += 1;
         push('cmp', '父与较大孩子比较', `比较父 ${vals[i]} 与较大孩子 ${vals[big]}：${vals[i] >= vals[big] ? '父不小于孩子，调整结束' : '父小于孩子，需要交换'}。`, { [i]: 'active', [big]: 'compare' });
         if (vals[i] >= vals[big]) break;
         [vals[i], vals[big]] = [vals[big], vals[i]];
+        swaps += 1;
         push('swap', '交换下沉', `交换 a[${i}] 与 a[${big}]，${vals[big]} 下沉、${vals[i]} 上浮。`, { [i]: 'insert', [big]: 'insert' });
         i = big;
         j = 2 * i + 1;
@@ -133,6 +139,7 @@ export const heapSort: AlgorithmMeta = {
 
     for (let end = n - 1; end > 0; end--) {
       [vals[0], vals[end]] = [vals[end], vals[0]];
+      swaps += 1;
       sortedTail.add(end);
       heapSize.v = end;
       push('extract', '取堆顶归位', `堆顶与末尾 a[${end}] 交换，${vals[end]} 归位，堆长度减为 ${end}。`, { [end]: 'sorted' });

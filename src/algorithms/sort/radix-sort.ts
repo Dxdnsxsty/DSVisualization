@@ -92,6 +92,8 @@ export const radixSort: AlgorithmMeta = {
     let buckets: number[][] = Array.from({ length: 10 }, () => []);
     let round = 0;
     let done = false;
+    let mainWrites = 0;
+    let auxiliaryWrites = 0;
 
     const digitOf = (v: number, p: number) => Math.floor(Math.abs(v) / Math.pow(10, p)) % 10;
 
@@ -130,6 +132,7 @@ export const radixSort: AlgorithmMeta = {
           caption,
         ),
       );
+      steps[steps.length - 1].metrics = { comparisons: 0, swaps: 0, writes: mainWrites + auxiliaryWrites, auxiliaryWrites };
     };
 
     push(
@@ -152,6 +155,7 @@ export const radixSort: AlgorithmMeta = {
       for (let i = 0; i < n; i++) {
         const d = digitOf(arr[i], p);
         buckets[d].push(arr[i]);
+        auxiliaryWrites += 1;
         curIdx = i;
         curDigit = d;
         placed += 1;
@@ -172,6 +176,7 @@ export const radixSort: AlgorithmMeta = {
       );
 
       arr = collected;
+      mainWrites += n;
       placed = n;
       push(
         'writeback',

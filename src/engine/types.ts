@@ -63,6 +63,14 @@ export interface Scene {
   aux?: SceneAux;
 }
 
+/** 累计关键字比较、交换与数据写入；writes 包含原数组及辅助数组/桶，交换计两次写入。 */
+export interface SortMetrics {
+  comparisons: number;
+  swaps: number;
+  writes: number;
+  auxiliaryWrites?: number; // writes 中写入辅助数组/桶的部分；省略表示 0
+}
+
 export interface TraceStep {
   id: number;
   anchor: string; // 行锚点，不依赖具体行号；切换语言时靠它对齐
@@ -72,6 +80,7 @@ export interface TraceStep {
   callStack?: string[]; // 递归算法填充，变量面板的「调用栈」页签读取
   caption: string;
   duration?: number;
+  metrics?: SortMetrics; // 当前步骤执行后的累计快照；未接入统计时省略
 }
 
 export interface CodeLine {
