@@ -296,17 +296,10 @@ export const kmpMatch: AlgorithmMeta = {
         j += 1;
       } else {
         const oldJ = j;
-        const nj = nextArr[j] === null ? -1 : (nextArr[j] as number);
-        if (nj < 0) {
-          i += 1;
-          j = 0;
-        } else {
-          j = nj;
-        }
+        j = nextArr[oldJ] as number;
         matchPush(
           'kmpBack',
-          `失配于 j = ${oldJ}，查表得 next[${oldJ}] = ${nj}：模式串右移 ${oldJ - Math.max(nj, 0)} 位，` +
-            `${nj < 0 ? 'j 归 0、i 前进一位。' : `j 退到 ${nj}，而 i 仍停在 ${i}。`}`,
+          `失配于 j = ${oldJ}，查表得 next[${oldJ}] = ${j}：模式串右移 ${oldJ - j} 位，i 仍停在 ${i}。`,
         );
       }
     }
