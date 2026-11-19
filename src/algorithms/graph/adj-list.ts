@@ -52,7 +52,15 @@ export const adjList: AlgorithmMeta = {
         if (forward) return { ...edge(id(a), id(b), undefined, 'tree', true), bidirectional: reverse };
         return edge(id(a), id(b), undefined, index === hotEdge ? 'active' : 'default');
       });
-      const scene = { ...graphScene(nodes, edges), graphTrace: 'adjacency' as const };
+      const scene = {
+        ...graphScene(nodes, edges), graphTrace: 'adjacency' as const,
+        adjacency: adj.map((neighbors, index) => ({
+          vertex: id(index),
+          neighbors: neighbors.map(id),
+          active: index === current,
+          inserted: index === current && ['link', 'linkReverse'].includes(anchor) ? id(neighbors[0]) : undefined,
+        })),
+      };
       const adjacency = adj.map((neighbors, i) => `${names[i]}: ${neighbors.map((v) => names[v]).join(' → ') || '∅'}`).join('  ');
       steps.push(makeStep(steps.length, anchor, '建立邻接表', scene, { 邻接表: adjacency }, caption));
     };

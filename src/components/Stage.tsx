@@ -20,6 +20,7 @@ const EDGE_COLOR: Record<EdgeState, string> = {
   active: '#225EFC',
   candidate: '#F99000',
   reject: '#DCE0E7',
+  removed: '#9AA2AF',
 };
 
 const LEGEND: { state: NodeState; text: string }[] = [
@@ -43,6 +44,8 @@ interface Props {
 export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene }, ref) {
   const isTreeGraph = scene.kind === 'tree' || scene.kind === 'graph';
   const canvasRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [hintRight, setHintRight] = useState(false);
 
   // 画布比可视宽度更宽时，右侧浮一层渐隐提示；滚到末尾就撤掉，避免误以为还有内容
@@ -55,32 +58,72 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
   };
   useLayoutEffect(syncHint);
 
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const group = contentRef.current;
+    if (!viewport || !group) return;
+    const fitFullscreen = () => {
+      const stage = viewport.closest('.stage');
+      if (document.fullscreenElement !== stage) {
+        group.style.removeProperty('--fullscreen-scale');
+        return;
+      }
+      // offsetWidth/Height 不包含 transform，缩放不会反过来影响测量。
+      const scale = Math.min(
+        (viewport.clientWidth - 32) / group.offsetWidth,
+        (viewport.clientHeight - 32) / group.offsetHeight,
+      );
+      group.style.setProperty('--fullscreen-scale', String(Math.max(0.01, scale)));
+    };
+    const observer = new ResizeObserver(fitFullscreen);
+    observer.observe(viewport);
+    observer.observe(group);
+    document.addEventListener('fullscreenchange', fitFullscreen);
+    fitFullscreen();
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('fullscreenchange', fitFullscreen);
+      group.style.removeProperty('--fullscreen-scale');
+    };
+  }, []);
+
+  // 全屏先恢复 SVG 的固有宽度，再整体缩放，避免百分比宽度形成循环测量。
+  useLayoutEffect(() => {
+    canvasRef.current?.querySelectorAll('svg').forEach((svg) => {
+      svg.style.setProperty('--intrinsic-width', `${svg.viewBox.baseVal.width}px`);
+    });
+  }, [scene]);
+
   return (
     <div className="panel stage" ref={ref}>
       <div className="stage-head">
         <span>动画舞台</span>
         <span className="muted">{scene.note ?? ''}</span>
       </div>
-      <div className="stage-viewport">
+      <div className="stage-viewport" ref={viewportRef}>
+        <div className="stage-content" ref={contentRef}>
         <div className="stage-canvas" ref={canvasRef} onScroll={syncHint}>
-          {scene.aux?.layout === 'queue' ? <div className="tree-queue-stage">
+          {scene.adjacency ? <div className="adjacency-stage">
+            <div className="adjacency-graph"><TreeGraphSvg scene={scene} compact /></div>
+            <div className="adjacency-table"><AdjacencySvg scene={scene} /></div>
+          </div> : scene.aux?.layout === 'queue' ? <div className="tree-queue-stage">
             <div className="queue-tree"><TreeGraphSvg scene={scene} compact /></div>
             <div className="queue-side">
               <span className="aux-label">{scene.aux.label}</span>
               <QueueSvg nodes={scene.aux.nodes} />
             </div>
           </div> : scene.aux?.layout === 'stack' ? <div className="bracket-stage">
-            <div className="bracket-sequence"><LinearSvg scene={scene} /></div>
+            <div className={isTreeGraph ? 'stack-graph' : 'bracket-sequence'}>
+              {isTreeGraph ? <TreeGraphSvg scene={scene} compact /> : <LinearSvg scene={scene} />}
+            </div>
             <div className="bracket-stack">
               <span className="aux-label">{scene.aux.label}</span>
-              <StackSvg compact scene={{ kind: 'array', nodes: scene.aux.nodes, pointers: scene.aux.pointers, capacity: scene.aux.nodes.length }} />
+              <StackSvg compact scene={{ kind: 'array', nodes: scene.aux.nodes, pointers: scene.aux.pointers, capacity: scene.aux.capacity ?? scene.aux.nodes.length }} />
             </div>
           </div> : isTreeGraph ? <TreeGraphSvg scene={scene} /> :
             scene.layout === 'stack' || scene.layout === 'call-stack' ? <StackSvg scene={scene} /> :
               scene.layout === 'ring-queue' ? <RingQueueSvg scene={scene} /> : <LinearSvg scene={scene} />}
         </div>
-        {hintRight && <span className="scroll-hint" aria-hidden="true" />}
-      </div>
       {scene.aux && !scene.aux.layout && (
         <div className="aux-wrap">
           <span className="aux-label">{scene.aux.label}</span>
@@ -101,8 +144,17 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
           </div>
         </div>
       )}
+        </div>
+        {hintRight && <span className="scroll-hint" aria-hidden="true" />}
+      </div>
       <div className="legend">
-        {scene.graphTrace ? <>
+        {scene.graphTrace === 'topology' ? <>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.default }} />未删除的依赖边（实线）</span>
+          <span className="legend-item"><i style={{ background: 'transparent', borderColor: EDGE_COLOR.removed, borderStyle: 'dashed' }} />已删除的依赖边（虚线）</span>
+          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />待输出顶点</span>
+          <span className="legend-item"><i style={{ background: COLOR.sorted.fill, borderColor: COLOR.sorted.stroke }} />已输出顶点</span>
+          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />新入栈</span>
+        </> : scene.graphTrace ? <>
           <span className="legend-item"><i style={{ background: COLOR.found.stroke }} />{scene.graphTrace === 'adjacency' ? '已挂接的方向' : '首次访问路径'}</span>
           <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />{scene.graphTrace === 'adjacency' ? '已写入邻接表' : '已标记访问'}</span>
           <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />正在考察或处理</span>
@@ -192,6 +244,9 @@ function TreeGraphSvg({ scene, compact = false }: { scene: Scene; compact?: bool
         <marker id={`${markerId}-amber`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M2 1L8 5L2 9" fill="none" stroke="#F99000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
+        {scene.graphTrace === 'topology' && <marker id={`${markerId}-removed`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke={EDGE_COLOR.removed} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </marker>}
         {scene.graphTrace && <marker id={`${markerId}-path`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M2 1L8 5L2 9" fill="none" stroke={COLOR.found.stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </marker>}
@@ -206,14 +261,14 @@ function TreeGraphSvg({ scene, compact = false }: { scene: Scene; compact?: bool
         const st = e.state ?? 'default';
         const markedPath = scene.graphTrace && st === 'tree';
         const stroke = markedPath ? COLOR.found.stroke : EDGE_COLOR[st];
-        const dashed = st === 'candidate' || st === 'reject';
+        const dashed = st === 'candidate' || st === 'reject' || st === 'removed';
         const marker =
           e.directed || isTree || e.bidirectional
-            ? markerUrl(markedPath ? 'path' : st === 'active' ? 'blue' : st === 'candidate' ? 'amber' : 'default')
+            ? markerUrl(markedPath ? 'path' : st === 'removed' ? 'removed' : st === 'active' ? 'blue' : st === 'candidate' ? 'amber' : 'default')
             : undefined;
         const length = Math.hypot(b.x - a.x, b.y - a.y);
         // 把路径箭头停在顶点外沿，避免箭头被后画的圆形顶点盖住。
-        const inset = markedPath && marker && length > 0 ? Math.min(NODE_R + 3, length / 3) / length : 0;
+        const inset = (markedPath || scene.graphTrace === 'topology') && marker && length > 0 ? Math.min(NODE_R + 3, length / 3) / length : 0;
         const mx = (a.x + b.x) / 2;
         const my = (a.y + b.y) / 2;
         return (
@@ -281,6 +336,51 @@ function TreeGraphSvg({ scene, compact = false }: { scene: Scene; compact?: bool
       })}
     </svg>
   );
+}
+
+function AdjacencySvg({ scene }: { scene: Scene }) {
+  const arrowId = useId();
+  const rows = scene.adjacency ?? [];
+  const names = new Map(scene.nodes.map(({ id, value }) => [id, value]));
+  const degrees = scene.nodes.map(({ id }) => (scene.edges ?? []).filter(({ from, to }) => from === id || to === id).length);
+  const slotWidth = 70;
+  const stepWidth = 92;
+  const startX = 98;
+  const width = startX + Math.max(1, ...degrees) * stepWidth + 52;
+  const height = 42 + rows.length * 46;
+  const arrow = `url(#${arrowId})`;
+
+  return <svg className="adjacency-svg" viewBox={`0 0 ${width} ${height}`} width={width} role="img" aria-label="邻接表，顶点指向邻接结点链，链尾为 NULL">
+    <defs><marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M2 1L9 5L2 9" fill="none" stroke="var(--muted)" strokeWidth="1.5" />
+    </marker></defs>
+    <text x={42} y={20} textAnchor="middle" fontSize="12" fill="var(--muted)">顶点表</text>
+    <text x={startX} y={20} fontSize="12" fill="var(--muted)">邻接结点链（头插法）</text>
+    {rows.map((row, index) => {
+      const y = 36 + index * 46;
+      const center = y + 15;
+      const color = COLOR[row.active ? 'active' : 'default'];
+      const chain = row.neighbors.map((id) => names.get(id)).join(' → ');
+      return <g key={row.vertex}>
+        <title>{`${names.get(row.vertex)} → ${chain ? `${chain} → ` : ''}NULL`}</title>
+        <rect x={16} y={y} width={52} height={30} rx={4} fill={color.fill} stroke={color.stroke} />
+        <text x={42} y={center} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--text)">{names.get(row.vertex)}</text>
+        <path d={`M70 ${center} H${startX - 4}`} fill="none" stroke="var(--muted)" strokeWidth="1.5" markerEnd={arrow} />
+        {row.neighbors.map((neighbor, position) => {
+          const x = startX + position * stepWidth;
+          const inserted = neighbor === row.inserted;
+          const style = COLOR[inserted ? 'insert' : 'default'];
+          return <g key={neighbor}>
+            <rect x={x} y={y} width={slotWidth} height={30} rx={4} fill={style.fill} stroke={style.stroke} />
+            <path d={`M${x + 48} ${y} V${y + 30}`} stroke={style.stroke} />
+            <text x={x + 24} y={center} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--text)">{names.get(neighbor)}</text>
+            <path d={`M${x + 58} ${center} H${x + stepWidth - 4}`} fill="none" stroke="var(--muted)" strokeWidth="1.5" markerEnd={arrow} />
+          </g>;
+        })}
+        <text x={startX + row.neighbors.length * stepWidth} y={center} dominantBaseline="central" fontSize="12" fontFamily="monospace" fill="var(--muted)">NULL</text>
+      </g>;
+    })}
+  </svg>;
 }
 
 function QueueSvg({ nodes }: { nodes: Scene['nodes'] }) {

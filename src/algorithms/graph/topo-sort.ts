@@ -1,5 +1,5 @@
 import type { AlgorithmMeta, EdgeState, NodeState, TraceStep } from '../../engine/types';
-import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
+import { edge, graphScene, makeStep, node, nodeAt } from '../../engine/scene';
 
 /** 固定有向无环图：A→B、A→C、B→D、C→D、C→E、D→F、E→F */
 const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -124,10 +124,24 @@ export const topoSort: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          graphScene(nodes, edges, `已输出 ${order.length} / ${n} 个顶点`),
+          {
+            ...graphScene(nodes, edges, `已输出 ${order.length} / ${n} 个顶点`),
+            graphTrace: 'topology',
+            aux: {
+              label: '入度为 0 的待输出顶点栈',
+              layout: 'stack',
+              capacity: n,
+              nodes: stack.map((v, index) => node(ids[v], VEX[v],
+                index === stack.length - 1
+                  ? anchor === 'init' || (anchor === 'dec' && cur === VEX[v]) ? 'insert' : 'active'
+                  : 'default')),
+              pointers: [{ label: 'top', index: stack.length > 0 ? stack.length - 1 : null }],
+            },
+          },
           {
             入度: VEX.slice(0, n).map((v, i) => `${v}${indeg[i]}`).join(' '),
             栈: stack.map((v) => VEX[v]).join(' ') || '空',
+            栈顶: stack.length > 0 ? VEX[stack[stack.length - 1]] : '空',
             输出序列: order.map((v) => VEX[v]).join(' ') || '空',
             当前顶点: cur,
           },
@@ -146,7 +160,7 @@ export const topoSort: AlgorithmMeta = {
 
       for (const [a, b] of pairs) {
         if (a !== v) continue;
-        eStates[`${a}>${b}`] = 'tree';
+        eStates[`${a}>${b}`] = 'removed';
         indeg[b] -= 1;
         if (indeg[b] === 0) {
           stack.push(b);

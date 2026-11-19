@@ -14,7 +14,7 @@ export type NodeState =
 export type SceneKind = 'array' | 'list' | 'tree' | 'graph';
 
 /** 边的状态：树上已选中的边 / 图中正在考察的边 / 被淘汰的边 */
-export type EdgeState = 'default' | 'tree' | 'active' | 'candidate' | 'reject';
+export type EdgeState = 'default' | 'tree' | 'active' | 'candidate' | 'reject' | 'removed';
 
 /** 一条边。树用 parent→child，图用 from→to，权值放在 label 里。 */
 export interface SceneEdge {
@@ -55,6 +55,7 @@ export interface ListLink {
 export interface SceneAux {
   label: string;
   layout?: 'stack' | 'queue';
+  capacity?: number; // 辅助栈固定槽位数，空栈时仍显示容器
   nodes: SceneNode[];
   pointers?: ScenePointer[];
   cols?: number;
@@ -71,7 +72,8 @@ export interface Scene {
   circular?: boolean; // 链表：尾结点的 next 指回首结点
   listLinks?: ListLink[]; // 明确指定链表指针时，连线不由画面位置推断
   edges?: SceneEdge[]; // tree / graph
-  graphTrace?: 'traversal' | 'adjacency'; // 可区分发现路径与邻接表写入
+  graphTrace?: 'traversal' | 'adjacency' | 'topology'; // 区分发现路径、邻接表写入与拓扑删边
+  adjacency?: { vertex: string; neighbors: string[]; active: boolean; inserted?: string }[];
   subtrees?: { root: string; active?: SceneEdge['side'] }; // 当前递归结点的左右子树
   cols?: number; // array 折行成二维网格（矩阵、哈希表）时每行格子数
   aux?: SceneAux;
