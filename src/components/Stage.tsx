@@ -48,6 +48,12 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
   const contentRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [hintRight, setHintRight] = useState(false);
+  const [selectedVertex, setSelectedVertex] = useState<string | null>(null);
+  useLayoutEffect(() => { setSelectedVertex(null); }, [scene.shortestPath?.source]);
+  const selectedPath = scene.shortestPath?.rows.find(({ id }) => id === selectedVertex);
+  const selectedEdges = new Set(selectedPath?.path.slice(1).map((id, index) => `${selectedPath.path[index]}>${id}`));
+  const pathScene: Scene = selectedPath ? { ...scene, edges: scene.edges?.map((edge) =>
+    selectedEdges.has(`${edge.from}>${edge.to}`) ? { ...edge, state: 'active' } : edge) } : scene;
 
   // 画布比可视宽度更宽时，右侧浮一层渐隐提示；滚到末尾就撤掉，避免误以为还有内容
   const syncHint = () => {
@@ -104,7 +110,10 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
       <div className="stage-viewport" ref={viewportRef}>
         <div className="stage-content" ref={contentRef}>
         <div className="stage-canvas" ref={canvasRef} onScroll={syncHint}>
-          {scene.adjacency ? <div className="adjacency-stage">
+          {scene.shortestPath ? <div className="shortest-path-stage">
+            <div className="shortest-path-graph"><TreeGraphSvg scene={pathScene} compact onSelectVertex={setSelectedVertex} /></div>
+            <ShortestPathTable data={scene.shortestPath} selected={selectedVertex} onSelect={setSelectedVertex} />
+          </div> : scene.adjacency ? <div className="adjacency-stage">
             <div className="adjacency-graph"><TreeGraphSvg scene={scene} compact /></div>
             <div className="adjacency-table"><AdjacencySvg scene={scene} /></div>
           </div> : scene.aux?.layout === 'queue' ? <div className="tree-queue-stage">
@@ -158,7 +167,12 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
         {hintRight && <span className="scroll-hint" aria-hidden="true" />}
       </div>
       <div className="legend">
-        {scene.graphTrace === 'topology' ? <>
+        {scene.shortestPath ? <>
+          <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />距离已确定</span>
+          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />待确定顶点</span>
+          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />本步更新</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />所选路径</span>
+        </> : scene.graphTrace === 'topology' ? <>
           <span className="legend-item"><i style={{ background: EDGE_COLOR.default }} />未删除的依赖边（实线）</span>
           <span className="legend-item"><i style={{ background: 'transparent', borderColor: EDGE_COLOR.removed, borderStyle: 'dashed' }} />已删除的依赖边（虚线）</span>
           <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />待输出顶点</span>
@@ -168,6 +182,11 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
           <span className="legend-item"><i style={{ background: COLOR.found.stroke }} />{scene.graphTrace === 'adjacency' ? '已挂接的方向' : '首次访问路径'}</span>
           <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />{scene.graphTrace === 'adjacency' ? '已写入邻接表' : '已标记访问'}</span>
           <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />正在考察或处理</span>
+          {scene.aux?.layout === 'call-stack' && <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />当前调用</span>}
+          {scene.aux?.layout === 'queue' && <>
+            <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />当前队头</span>
+            <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />新入队</span>
+          </>}
         </> : <>
         {isTreeGraph
           ? [
@@ -198,6 +217,28 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
   );
 });
 
+function ShortestPathTable({ data, selected, onSelect }: {
+  data: NonNullable<Scene['shortestPath']>; selected: string | null; onSelect: (id: string) => void;
+}) {
+  const row = data.rows.find(({ id }) => id === selected);
+  const vertex = (id: string) => data.rows.find((item) => item.id === id)?.vertex ?? id;
+  return <div className="shortest-path-table">
+    <table aria-label="Dijkstra 计算表">
+      <caption>源点 {vertex(data.source)} · 点击顶点查看路径</caption>
+      <thead><tr><th scope="col">顶点</th><th scope="col">距离</th><th scope="col">前驱</th><th scope="col">已确定</th></tr></thead>
+      <tbody>{data.rows.map((item) => <tr key={item.id} data-vertex={item.vertex} className={item.changed ? 'path-row-updated' : undefined}>
+        <th scope="row"><button className="vertex-select" aria-label={`查看 ${item.vertex} 的路径`} aria-pressed={selected === item.id} onClick={() => onSelect(item.id)}>{item.vertex}</button></th>
+        <td>{item.distance ?? '∞'}</td><td>{item.predecessor ?? '—'}</td><td>{item.settled ? '是' : '否'}</td>
+      </tr>)}</tbody>
+    </table>
+    <div className="path-detail" aria-live="polite" aria-label="所选路径">
+      {!row ? '点击图中顶点或表中按钮，可查看当前步骤的路径。' : row.distance === null
+        ? data.complete ? `${vertex(data.source)} 无法到达 ${row.vertex}，没有路径。` : `当前尚未发现通往 ${row.vertex} 的路径。`
+        : <>{row.settled ? '已确定的最短路径' : '当前候选路径（尚未确定最短）'}：<br />{row.path.map(vertex).join(' → ')}<br />距离：{row.distance}</>}
+    </div>
+  </div>;
+}
+
 function SubtreeOutlines({ edges, points, focus }: {
   edges: SceneEdge[]; points: Record<string, LayoutPoint>; focus: NonNullable<Scene['subtrees']>;
 }) {
@@ -222,7 +263,7 @@ function SubtreeOutlines({ edges, points, focus }: {
 }
 
 /** 树 / 图：圆形结点 + 带状态的边，坐标由 layout 统一给出。 */
-function TreeGraphSvg({ scene, compact = false }: { scene: Scene; compact?: boolean }) {
+function TreeGraphSvg({ scene, compact = false, onSelectVertex }: { scene: Scene; compact?: boolean; onSelectVertex?: (id: string) => void }) {
   const markerId = useId();
   const markerUrl = (suffix: string) => `url(#${markerId}-${suffix})`;
   const edges: SceneEdge[] = scene.edges ?? [];
@@ -279,7 +320,7 @@ function TreeGraphSvg({ scene, compact = false }: { scene: Scene; compact?: bool
             : undefined;
         const length = Math.hypot(b.x - a.x, b.y - a.y);
         // 把路径箭头停在顶点外沿，避免箭头被后画的圆形顶点盖住。
-        const inset = (markedPath || scene.graphTrace === 'topology') && marker && length > 0 ? Math.min(NODE_R + 3, length / 3) / length : 0;
+        const inset = (markedPath || scene.graphTrace === 'topology' || scene.shortestPath) && marker && length > 0 ? Math.min(NODE_R + 3, length / 3) / length : 0;
         const mx = (a.x + b.x) / 2;
         const my = (a.y + b.y) / 2;
         return (
@@ -321,7 +362,11 @@ function TreeGraphSvg({ scene, compact = false }: { scene: Scene; compact?: bool
         if (!p) return null;
         const c = scene.graphTrace && n.state === 'visited' ? COLOR.found : COLOR[n.state ?? 'default'];
         return (
-          <g key={n.id} style={{ transform: `translate(${p.x}px, ${p.y}px)`, transition: 'transform 340ms cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
+          <g key={n.id} role={onSelectVertex ? 'button' : undefined} tabIndex={onSelectVertex ? 0 : undefined}
+            aria-label={onSelectVertex ? `查看 ${n.value} 的路径` : undefined}
+            onClick={onSelectVertex ? () => onSelectVertex(n.id) : undefined}
+            onKeyDown={onSelectVertex ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectVertex(n.id); } } : undefined}
+            style={{ cursor: onSelectVertex ? 'pointer' : undefined, transform: `translate(${p.x}px, ${p.y}px)`, transition: 'transform 340ms cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
             <circle r={NODE_R} strokeWidth="1.4" style={{ fill: c.fill, stroke: c.stroke, transition: 'fill 200ms ease, stroke 200ms ease' }} />
             <text
               textAnchor="middle"

@@ -1,5 +1,6 @@
 import type { AlgorithmMeta, EdgeState, NodeState, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, node, nodeAt } from '../../engine/scene';
+import { GRAPH_SIZE_INPUT } from '../../engine/input';
 
 /** 固定有向无环图：A→B、A→C、B→D、C→D、C→E、D→F、E→F */
 const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -29,13 +30,17 @@ export const topoSort: AlgorithmMeta = {
   summary: '反复取出入度为 0 的顶点，并删掉它的出边。',
   complexity: { time: 'O(n+e)', space: 'O(n)', extra: '邻接矩阵实现为 O(n²)' },
   difficulty: '进阶',
-  inputHint: '输入顶点个数（3–6），在示例有向无环图上演示基于入度与栈的拓扑排序。',
+  inputHint: '输入顶点个数（3–6），选择无环或有环案例，观察入度、栈和输出序列。',
   defaultInput: [6],
-  input: { min: 3, max: 6, minLen: 1, maxLen: 1 },
+  input: GRAPH_SIZE_INPUT,
+  graphCases: [
+    { id: 0, label: '无环图', description: '所有顶点都能输出，得到合法拓扑序列。' },
+    { id: 1, label: '存在环', description: 'B、C 形成环，栈提前清空；无法得到完整拓扑序列。' },
+  ],
   code: {
     cpp: [
       { text: 'void TopSort(AMGraph G) {' },
-      { text: '  int indegree[MAXV], st[MAXV], top = -1;', anchor: 'init' },
+      { text: '  int indegree[MAXV], st[MAXV], top = -1, count = 0;', anchor: 'init' },
       { text: '  for (int i = 0; i < G.vexnum; i++) {' },
       { text: '    indegree[i] = 0;' },
       { text: '    for (int j = 0; j < G.vexnum; j++)' },
@@ -45,12 +50,15 @@ export const topoSort: AlgorithmMeta = {
       { text: '  while (top >= 0) {', anchor: 'pop' },
       { text: '    int v = st[top--];' },
       { text: '    printf("%c ", G.vex[v]);' },
+      { text: '    count++;' },
       { text: '    for (int w = 0; w < G.vexnum; w++)', anchor: 'dec' },
       { text: '      if (G.arcs[v][w]) {' },
       { text: '        indegree[w]--;' },
       { text: '        if (indegree[w] == 0) st[++top] = w;' },
       { text: '      }' },
-      { text: '  }', anchor: 'done' },
+      { text: '  }' },
+      { text: '  if (count < G.vexnum) printf("存在环，无法完成拓扑排序");', anchor: 'cycle' },
+      { text: '  // 否则已输出全部顶点', anchor: 'done' },
       { text: '}' },
     ],
     python: [
@@ -69,6 +77,7 @@ export const topoSort: AlgorithmMeta = {
       { text: '                indeg[w] -= 1' },
       { text: '                if indeg[w] == 0:' },
       { text: '                    st.append(w)' },
+      { text: '    if len(order) < g.n: raise ValueError("存在环，无法完成拓扑排序")', anchor: 'cycle' },
       { text: '    return order', anchor: 'done' },
     ],
   },
@@ -100,7 +109,7 @@ export const topoSort: AlgorithmMeta = {
   generate: (input) => {
     const n = Math.min(Math.max(input[0] || 6, 3), 6);
     const ids = VEX.slice(0, n).map((v) => `v${v}`);
-    const pairs = ADJ.filter(([a, b]) => a < n && b < n);
+    const pairs = (input[1] === 1 ? [...ADJ, [1, 2], [2, 1]] : ADJ).filter(([a, b]) => a < n && b < n);
     const steps: TraceStep[] = [];
     let k = 0;
     const indeg: number[] = Array(n).fill(0);
@@ -175,7 +184,11 @@ export const topoSort: AlgorithmMeta = {
         );
       }
     }
-    push('done', '完成', `拓扑序列为 ${order.map((v) => VEX[v]).join(' → ')}；输出数等于 n，图中无回路。`, '—');
+    if (order.length < n) {
+      push('cycle', '检测到环', `栈已空，但仅输出 ${order.length} / ${n} 个顶点；剩余依赖无法消除，图中存在环，无法完成拓扑排序。当前序列只是部分输出。`, '—');
+    } else {
+      push('done', '完成', `拓扑序列为 ${order.map((v) => VEX[v]).join(' → ')}；输出数等于 n，图中无回路。`, '—');
+    }
     return steps;
   },
 };

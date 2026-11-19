@@ -57,8 +57,9 @@ export default function App() {
   // 键盘快捷键（每次渲染重新绑定，确保闭包里拿到最新状态）
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (target && (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName) || target.closest('[role="button"]'))) return;
       if (route.name !== 'algo' || route.slug !== p.slug) return;
       switch (e.key) {
         case ' ': e.preventDefault(); p.toggle(); break;

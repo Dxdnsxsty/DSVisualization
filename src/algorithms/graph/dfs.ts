@@ -1,5 +1,6 @@
 import type { AlgorithmMeta, EdgeState, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
+import { GRAPH_SIZE_INPUT } from '../../engine/input';
 
 /** 固定示例图（无向）：A-B、A-C、B-D、B-E、C-F、E-F */
 const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -30,7 +31,11 @@ export const dfsGraph: AlgorithmMeta = {
   difficulty: '进阶',
   inputHint: '输入顶点个数（3–6），按示例无向图演示从 A 出发的深度优先遍历。',
   defaultInput: [6],
-  input: { min: 3, max: 6, minLen: 1, maxLen: 1 },
+  input: GRAPH_SIZE_INPUT,
+  graphCases: [
+    { id: 0, label: '连通图', description: '从 A 出发可以访问全部顶点。' },
+    { id: 1, label: '非连通图', description: '从 A 只能访问所在连通分量，观察哪些顶点仍未访问。' },
+  ],
   code: {
     cpp: [
       { text: 'void DFS(AMGraph G, int v) {' },
@@ -40,6 +45,7 @@ export const dfsGraph: AlgorithmMeta = {
       { text: '    if (G.arcs[v][w] && !visited[w])', anchor: 'check' },
       { text: '      DFS(G, w);', anchor: 'recurse' },
       { text: '}', anchor: 'ret' },
+      { text: '// 从 A 出发的遍历结束；其他连通分量需另行发起 DFS', anchor: 'done' },
     ],
     python: [
       { text: 'def dfs(g, v, visited):' },
@@ -49,6 +55,7 @@ export const dfsGraph: AlgorithmMeta = {
       { text: '        if g.arcs[v][w] and not visited[w]:', anchor: 'check' },
       { text: '            dfs(g, w, visited)', anchor: 'recurse' },
       { text: '    # 本次调用返回', anchor: 'ret' },
+      { text: '# 从 A 出发的遍历结束；其他连通分量需另行发起 DFS', anchor: 'done' },
     ],
   },
   doc: [
@@ -74,7 +81,7 @@ export const dfsGraph: AlgorithmMeta = {
   generate: (input) => {
     const n = Math.min(Math.max(input[0] || 6, 3), 6);
     const ids = VEX.slice(0, n).map((v) => `v${v}`);
-    const pairs = ADJ.filter(([a, b]) => a < n && b < n);
+    const pairs = (input[1] === 1 ? [[0, 1], [2, 3], [3, 4], [4, 5]] : ADJ).filter(([a, b]) => a < n && b < n);
     const steps: TraceStep[] = [];
     let k = 0;
     const visited: boolean[] = Array(n).fill(false);
@@ -132,7 +139,7 @@ export const dfsGraph: AlgorithmMeta = {
       push('mark', '标记已访问', `visited[${VEX[v]}] = 1，之后不会再进入它。`, stack);
 
       for (let w = 0; w < n; w++) {
-        const linked = ADJ.some(([a, b]) => (a === v && b === w) || (a === w && b === v));
+        const linked = pairs.some(([a, b]) => (a === v && b === w) || (a === w && b === v));
         if (!linked) continue;
         checking = { from: v, to: w, state: 'active' };
         push('loop', '考察邻接点', `检查 ${VEX[v]} 的邻接点 ${VEX[w]}。`, stack);
@@ -152,6 +159,10 @@ export const dfsGraph: AlgorithmMeta = {
     };
 
     dfs(0, []);
+    const remaining = VEX.slice(0, n).filter((_, index) => !visited[index]);
+    push('done', '遍历完成', remaining.length
+      ? `从 A 出发的遍历结束；${remaining.join('、')} 不与 A 连通，仍未访问。遍历全图需要从未访问顶点再次发起 DFS。`
+      : '从 A 出发的遍历结束，所有顶点均已访问，调用栈已空。', []);
     return steps;
   },
 };

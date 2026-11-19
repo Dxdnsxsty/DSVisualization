@@ -1,5 +1,6 @@
 import type { AlgorithmMeta, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
+import { GRAPH_SIZE_INPUT } from '../../engine/input';
 
 /** 固定示例图（无向，明显分三层）：A-B、A-C、B-D、B-E、C-E、C-F、E-F */
 const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -34,7 +35,11 @@ export const bfsGraph: AlgorithmMeta = {
   difficulty: '入门',
   inputHint: '输入顶点个数（3–6），按示例无向图演示从 A 出发的广度优先遍历。',
   defaultInput: [6],
-  input: { min: 3, max: 6, minLen: 1, maxLen: 1 },
+  input: GRAPH_SIZE_INPUT,
+  graphCases: [
+    { id: 0, label: '连通图', description: '从 A 出发，按距离逐层访问全部顶点。' },
+    { id: 1, label: '非连通图', description: '队列清空后，其他连通分量的顶点仍未访问。' },
+  ],
   code: {
     cpp: [
       { text: 'void BFS(AMGraph G, int v) {' },
@@ -96,7 +101,7 @@ export const bfsGraph: AlgorithmMeta = {
   generate: (input) => {
     const n = Math.min(Math.max(input[0] || 6, 3), 6);
     const ids = VEX.slice(0, n).map((v) => `v${v}`);
-    const pairs = ADJ.filter(([a, b]) => a < n && b < n);
+    const pairs = (input[1] === 1 ? [[0, 1], [2, 3], [3, 4], [4, 5]] : ADJ).filter(([a, b]) => a < n && b < n);
     const steps: TraceStep[] = [];
     let k = 0;
     const visited: boolean[] = Array(n).fill(false);
@@ -169,7 +174,8 @@ export const bfsGraph: AlgorithmMeta = {
         push('enqueue', '发现并入队', `${VEX[w]} 未被访问，标记 visited 后入队，距离为 ${dist[w]}。`, u);
       }
     }
-    push('done', '遍历完成', `队列已空，广度优先序列为 ${order.map((v) => VEX[v]).join(' → ')}。`);
+    const remaining = VEX.slice(0, n).filter((_, index) => !visited[index]);
+    push('done', '遍历完成', `队列已空，从 A 出发的广度优先序列为 ${order.map((v) => VEX[v]).join(' → ')}。${remaining.length ? `${remaining.join('、')} 不与 A 连通，仍未访问；遍历全图需从未访问顶点再次发起 BFS。` : '所有顶点均已访问。'}`);
     return steps;
   },
 };

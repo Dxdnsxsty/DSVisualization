@@ -3,6 +3,13 @@ import type { InputSpec } from './types';
 /** 未声明 input 的算法按这个规则校验：2–10 个 -999~999 的整数 */
 export const DEFAULT_INPUT: InputSpec = { min: -999, max: 999, minLen: 2, maxLen: 10 };
 
+/** 第一项是顶点数；可选第二项为案例编号，旧的一项输入仍有效。 */
+export const GRAPH_SIZE_INPUT: InputSpec = {
+  format: 'graph-size', min: 0, max: 6, minLen: 1, maxLen: 2,
+  check: ([n, example = 0]) => n < 3 || n > 6 ? '顶点数量须为 3–6' : ![0, 1].includes(example) ? '请选择有效的图案例' : null,
+  random: () => [3 + Math.floor(Math.random() * 4)],
+};
+
 export const STRING_MATCH_INPUT: InputSpec = {
   format: 'string-match', min: 1, max: 26, minLen: 4, maxLen: 19,
   check: ([m, ...letters]) => m > 5 ? '模式串须有 1–5 个字符' :

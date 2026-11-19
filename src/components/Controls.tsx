@@ -64,17 +64,23 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
   // 校验规则来自算法元数据，不再全站写死「2–10 个 -999~999 的整数」
   const spec = algo.input ?? DEFAULT_INPUT;
   const stringMatch = spec.format === 'string-match';
-  const [draft, setDraft] = useState<[string, string]>(() => stringMatch ? decodeMatchInput(p.input) : [p.input.join(', '), '']);
+  const graphSize = spec.format === 'graph-size';
+  const inputDraft = (): [string, string] => stringMatch ? decodeMatchInput(p.input) : [graphSize ? String(p.input[0]) : p.input.join(', '), ''];
+  const [draft, setDraft] = useState<[string, string]>(inputDraft);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setDraft(stringMatch ? decodeMatchInput(p.input) : [p.input.join(', '), '']);
+    setDraft(inputDraft());
     setError('');
-  }, [p.input, stringMatch]);
+  }, [p.input, stringMatch, graphSize]);
 
   const apply = () => {
     const { nums, error: parseError } = stringMatch ? parseMatchInput(...draft) : parseInputText(draft[0]);
     if (parseError) { setError(parseError); return; }
+    if (graphSize) {
+      if (nums.length !== 1) { setError('请输入一个顶点数量'); return; }
+      nums.push(p.input[1] ?? 0);
+    }
     const err = validateInput(spec, nums);
     if (err) { setError(err); return; }
     setError('');
@@ -83,6 +89,7 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
 
   const random = () => {
     const arr = randomInput(spec);
+    if (graphSize) arr.push(p.input[1] ?? 0);
     // 随机出来的数据若自身不合法，说明规则写错了：明确报错，而不是静默回退成默认串
     const err = validateInput(spec, arr);
     if (err) { setError(`随机生成失败：${err}`); return; }
@@ -93,7 +100,7 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
   return (
     <form className="panel input-panel" onSubmit={(event) => { event.preventDefault(); apply(); }}>
       <div className="input-row">
-        <label htmlFor="dsv-input">{stringMatch ? '主串' : '自定义数据'}</label>
+        <label htmlFor="dsv-input">{stringMatch ? '主串' : graphSize ? '顶点数量' : '自定义数据'}</label>
         <input id="dsv-input" value={draft[0]} onChange={(e) => setDraft([e.target.value, draft[1]])}
           placeholder={stringMatch ? 'abababc' : '20, 60, 30, 10, 40'} spellCheck={stringMatch ? false : undefined} />
         {stringMatch && <>
@@ -103,11 +110,18 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
         <button className="primary" type="submit">生成动画</button>
         <button type="button" onClick={random}>随机</button>
         <button type="button" onClick={() => {
-          setDraft(stringMatch ? decodeMatchInput(algo.defaultInput) : [algo.defaultInput.join(', '), '']);
+          setDraft(stringMatch ? decodeMatchInput(algo.defaultInput) : [graphSize ? String(algo.defaultInput[0]) : algo.defaultInput.join(', '), '']);
           setError('');
           p.regenerate(algo.defaultInput);
         }}>默认</button>
       </div>
+      {algo.graphCases && <div className="graph-cases" aria-label="图案例">
+        {algo.graphCases.map((example) => <button type="button" key={example.id}
+          className={(p.input[1] ?? 0) === example.id ? 'chip active' : 'chip'}
+          aria-pressed={(p.input[1] ?? 0) === example.id}
+          onClick={() => { setError(''); p.regenerate([p.input[0], example.id]); }}>{example.label}</button>)}
+        <span className="muted">{algo.graphCases.find(({ id }) => id === (p.input[1] ?? 0))?.description}</span>
+      </div>}
       <div className="input-hint">
         {error ? <span className="error" role="alert">{error}</span> : <span className="muted">{algo.inputHint}</span>}
         <span className="muted">改动数据会重新生成整条步骤序列</span>

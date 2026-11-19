@@ -126,16 +126,18 @@ export function checkGraphTraversal(algorithms) {
   const sizes = [3, 4, 5, 6];
   for (const [kind, example] of Object.entries(examples)) {
     const slug = 'graph/' + kind;
+    for (const scenario of [0, 1]) {
     for (const n of sizes) {
       const vertices = [...'ABCDEF'].slice(0, n);
-      const connections = example.filter(([a, b]) => vertices.includes(a) && vertices.includes(b));
+      const connections = (scenario ? ['AB', 'CD', 'DE', 'EF'] : example).filter(([a, b]) => vertices.includes(a) && vertices.includes(b));
       try {
         const algorithm = algorithms.find((item) => item.slug === slug);
         assert.ok(algorithm, '算法未注册');
-        checkTrace(algorithm.generate([n]), kind, vertices, connections);
-      } catch (error) { errors.push(slug + ' [' + n + ']：' + error.message); }
+        checkTrace(algorithm.generate([n, scenario]), kind, vertices, connections);
+      } catch (error) { errors.push(slug + ' [' + n + ', ' + scenario + ']：' + error.message); }
+    }
     }
   }
-  if (!errors.length) console.log('  图遍历通过：DFS / BFS 共 ' + (2 * sizes.length) + ' 组访问顺序、发现边与辅助栈／队列用例。');
+  if (!errors.length) console.log('  图遍历通过：DFS / BFS 共 ' + (4 * sizes.length) + ' 组连通／非连通图的访问顺序、发现边与辅助栈／队列用例。');
   return errors;
 }
