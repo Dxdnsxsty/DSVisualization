@@ -52,8 +52,8 @@ export function AlgorithmPage({ slug, stageRef, onFullscreen, mobileTab, onNavig
         </aside>
 
         <main className="col col-center">
-          <Stage ref={stageRef} scene={cur.scene} fullscreenControls={<Controls onFullscreen={onFullscreen} fullscreen />} />
-          <Controls onFullscreen={onFullscreen} />
+          <Stage ref={stageRef} scene={cur.scene} onFullscreen={onFullscreen} fullscreenControls={<Controls fullscreen />} />
+          <Controls />
           <InputBar algo={algo} />
         </main>
 

@@ -383,12 +383,17 @@ select:hover { border-color: #d8dbe3; }
 .stage-head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 12px;
   gap: 10px;
 }
+.stage-head > span { flex-shrink: 0; }
+.stage-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; margin-left: auto; }
+.stage-head-actions .muted { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.fullscreen-button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; padding: 6px; border-color: transparent; color: var(--ink); background: transparent; }
+.fullscreen-button:hover { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
 .stage-canvas {
   background: var(--code-bg);
   border: 1px solid var(--border);

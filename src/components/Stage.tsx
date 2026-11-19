@@ -39,15 +39,17 @@ const NODE_R = 21;
 interface Props {
   scene: Scene;
   fullscreenControls?: ReactNode;
+  onFullscreen?: () => void;
 }
 
 /** SVG 舞台：图元 id 稳定 + CSS transform 过渡 = 简化版 FLIP，交换/插入自带位移动画。 */
-export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, fullscreenControls }, ref) {
+export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, fullscreenControls, onFullscreen }, ref) {
   const isTreeGraph = scene.kind === 'tree' || scene.kind === 'graph';
   const canvasRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [hintRight, setHintRight] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [selectedVertex, setSelectedVertex] = useState<string | null>(null);
   useLayoutEffect(() => { setSelectedVertex(null); }, [scene.shortestPath?.source]);
   const selectedPath = scene.shortestPath?.rows.find(({ id }) => id === selectedVertex);
@@ -71,7 +73,9 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
     if (!viewport || !group) return;
     const fitFullscreen = () => {
       const stage = viewport.closest('.stage');
-      if (document.fullscreenElement !== stage) {
+      const active = document.fullscreenElement === stage;
+      setFullscreen(active);
+      if (!active) {
         group.style.removeProperty('--fullscreen-scale');
         return;
       }
@@ -105,7 +109,16 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
     <div className="panel stage" ref={ref}>
       <div className="stage-head">
         <span>动画舞台</span>
-        <span className="muted">{scene.note ?? ''}</span>
+        <div className="stage-head-actions">
+          <span className="muted">{scene.note ?? ''}</span>
+          {onFullscreen && <button className="fullscreen-button" onClick={onFullscreen}
+            title={fullscreen ? '退出全屏 (F / Esc)' : '进入全屏 (F)'}
+            aria-label={fullscreen ? '退出全屏' : '进入全屏'} aria-pressed={fullscreen}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+              <path d={fullscreen ? 'M3 8h5V3M16 3v5h5M21 16h-5v5M8 21v-5H3' : 'M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5'} />
+            </svg>
+          </button>}
+        </div>
       </div>
       <div className="stage-viewport" ref={viewportRef}>
         <div className="stage-content" ref={contentRef}>

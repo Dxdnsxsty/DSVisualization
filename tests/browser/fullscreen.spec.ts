@@ -27,7 +27,7 @@ async function enter(page: Page) {
     const style = await page.addStyleTag({ content: `${css}\n.stage[data-test-fullscreen] { position:fixed; inset:0; width:100vw; height:100vh; z-index:9999; }` });
     await style.evaluate((element) => element.setAttribute('data-fullscreen-test-style', ''));
   }
-  await page.locator('.col-center > .controls-panel').getByRole('button', { name: '全屏', exact: true }).click();
+  await page.locator('.stage-head').getByRole('button', { name: '进入全屏', exact: true }).click();
   await expect(page.locator('.stage')).toHaveAttribute('data-test-fullscreen', '');
 }
 
@@ -65,7 +65,7 @@ test('模拟全屏：全部演示首步、中间步、末步完整适配', async
       await seek(page, index);
       await fits(page);
     }
-    await page.locator('.stage-fullscreen-controls').getByRole('button', { name: '退出全屏', exact: true }).click();
+    await page.locator('.stage-head').getByRole('button', { name: '退出全屏', exact: true }).click();
     await expect(page.locator('.stage-fullscreen-controls')).toBeHidden();
     await expect(page.locator('.stage-content')).toHaveCSS('display', 'contents');
   }
@@ -74,7 +74,14 @@ test('模拟全屏：全部演示首步、中间步、末步完整适配', async
 test('模拟全屏：播放、单步、进度、倍速、调整窗口与退出恢复', async ({ page }) => {
   await mockFullscreen(page);
   await page.goto('/#/algo/graph/topo-sort');
+  const toggle = page.locator('.stage-head .fullscreen-button');
+  const enterIcon = await toggle.locator('path').getAttribute('d');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.controls button[title*="全屏"]')).toHaveCount(0);
   await enter(page);
+  await expect(toggle).toHaveAttribute('aria-label', '退出全屏');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(toggle.locator('path')).not.toHaveAttribute('d', enterIcon!);
   const bar = page.locator('.stage-fullscreen-controls');
   await bar.getByTitle('下一步 (→)').click();
   await expect(bar.locator('.step-no')).toContainText('步骤 2 /');
@@ -92,6 +99,9 @@ test('模拟全屏：播放、单步、进度、倍速、调整窗口与退出�
   await page.setViewportSize({ width: 900, height: 480 });
   await fits(page);
   await page.keyboard.press('Escape');
+  await expect(toggle).toHaveAttribute('aria-label', '进入全屏');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle.locator('path')).toHaveAttribute('d', enterIcon!);
   await expect(bar).toBeHidden();
   await expect(page.locator('.stage-content')).toHaveCSS('display', 'contents');
   await expect(page.locator('.col-center > .controls-panel .step-no')).toContainText('步骤 6 /');
@@ -108,12 +118,12 @@ test('原生全屏：浏览器允许时验证进入与退出', async ({ page }, 
     };
   });
   await page.goto('/#/algo/graph/dijkstra');
-  await page.locator('.col-center > .controls-panel').getByRole('button', { name: '全屏', exact: true }).click();
+  await page.locator('.stage-head').getByRole('button', { name: '进入全屏', exact: true }).click();
   await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement) || Boolean((window as Window & { fullscreenDenied?: string }).fullscreenDenied))).toBeTruthy();
   const denied = await page.evaluate(() => (window as Window & { fullscreenDenied?: string }).fullscreenDenied);
   test.skip(Boolean(denied), `当前浏览器不授予原生全屏：${denied}`);
   await fits(page);
-  await page.locator('.stage-fullscreen-controls').getByRole('button', { name: '退出全屏', exact: true }).click();
+  await page.locator('.stage-head').getByRole('button', { name: '退出全屏', exact: true }).click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBeTruthy();
   await expect(page.locator('.stage-fullscreen-controls')).toBeHidden();
 });
