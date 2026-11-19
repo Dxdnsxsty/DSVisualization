@@ -98,7 +98,10 @@ export const sparseTriple: AlgorithmMeta = {
       const auxNodes: SceneNode[] = triples.length
         ? triples.map((v, x) => node(`t${x}`, v, x === triples.length - 1 ? 'insert' : 'sorted'))
         : [node('t_empty', '待写入', 'default')];
-      const pointers: ScenePointer[] = pos === null ? [] : [{ label: '扫描', index: pos }];
+      const pointers: ScenePointer[] = pos === null ? [] : [
+        { label: 'i', index: Math.floor(pos / COLS) * COLS, axis: 'row' },
+        { label: 'j', index: pos },
+      ];
       steps.push(
         makeStep(
           t++,
@@ -107,6 +110,7 @@ export const sparseTriple: AlgorithmMeta = {
           {
             ...gridScene(nodes, COLS, pointers, `稀疏矩阵 A（${ROWS}×${COLS}）· 已找到 ${cnt} 个非零元素`),
             aux: { label: '三元组表（每格一个 (行,列,值)）', nodes: auxNodes, cols: Math.max(triples.length, 1) },
+            layout: 'matrix',
           },
           {
             当前行: pos === null ? '—' : Math.floor(pos / COLS),

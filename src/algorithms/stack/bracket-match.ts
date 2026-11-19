@@ -100,12 +100,23 @@ export const bracketMatch: AlgorithmMeta = {
             k++,
             anchor,
             phase,
-            arrayScene(
-              chars.map((c, i) => node(ids[i], c, states[ids[i]] ?? 'default')),
-              [{ label: 'i', index: pos }],
-              undefined,
-              `栈：${stack.length ? stack.join(' ') : '空'}　${hint}`,
-            ),
+            {
+              ...arrayScene(
+                chars.map((c, i) => node(ids[i], c, states[ids[i]] ?? 'default')),
+                [{ label: 'i', index: pos }],
+                undefined,
+                `栈：${stack.length ? stack.join(' ') : '空'}　${hint}`,
+              ),
+              aux: {
+                label: '未闭合的左括号',
+                layout: 'stack',
+                nodes: Array.from({ length: chars.length }, (_, index) => node(
+                  `${prefix}-stack-${index}`, stack[index] ?? '',
+                  index === stack.length - 1 ? (anchor === 'push' ? 'insert' : anchor === 'mismatch' ? 'delete' : 'active') : 'default',
+                )),
+                pointers: [{ label: 'top', index: stack.length ? stack.length - 1 : null }],
+              },
+            },
             {
               扫描位置: pos === null ? '—' : pos,
               栈深: stack.length,

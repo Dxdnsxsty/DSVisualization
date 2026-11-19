@@ -63,13 +63,25 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
       </div>
       <div className="stage-viewport">
         <div className="stage-canvas" ref={canvasRef} onScroll={syncHint}>
-          {isTreeGraph ? <TreeGraphSvg scene={scene} /> :
-            scene.layout === 'stack' ? <StackSvg scene={scene} /> :
+          {scene.aux?.layout === 'queue' ? <div className="tree-queue-stage">
+            <div className="queue-tree"><TreeGraphSvg scene={scene} compact /></div>
+            <div className="queue-side">
+              <span className="aux-label">{scene.aux.label}</span>
+              <QueueSvg nodes={scene.aux.nodes} />
+            </div>
+          </div> : scene.aux?.layout === 'stack' ? <div className="bracket-stage">
+            <div className="bracket-sequence"><LinearSvg scene={scene} /></div>
+            <div className="bracket-stack">
+              <span className="aux-label">{scene.aux.label}</span>
+              <StackSvg compact scene={{ kind: 'array', nodes: scene.aux.nodes, pointers: scene.aux.pointers, capacity: scene.aux.nodes.length }} />
+            </div>
+          </div> : isTreeGraph ? <TreeGraphSvg scene={scene} /> :
+            scene.layout === 'stack' || scene.layout === 'call-stack' ? <StackSvg scene={scene} /> :
               scene.layout === 'ring-queue' ? <RingQueueSvg scene={scene} /> : <LinearSvg scene={scene} />}
         </div>
         {hintRight && <span className="scroll-hint" aria-hidden="true" />}
       </div>
-      {scene.aux && (
+      {scene.aux && !scene.aux.layout && (
         <div className="aux-wrap">
           <span className="aux-label">{scene.aux.label}</span>
           <div className="aux-row">
@@ -147,7 +159,7 @@ function SubtreeOutlines({ edges, points, focus }: {
 }
 
 /** 树 / 图：圆形结点 + 带状态的边，坐标由 layout 统一给出。 */
-function TreeGraphSvg({ scene }: { scene: Scene }) {
+function TreeGraphSvg({ scene, compact = false }: { scene: Scene; compact?: boolean }) {
   const markerId = useId();
   const markerUrl = (suffix: string) => `url(#${markerId}-${suffix})`;
   const edges: SceneEdge[] = scene.edges ?? [];
@@ -155,11 +167,18 @@ function TreeGraphSvg({ scene }: { scene: Scene }) {
   const lay = isTree
     ? layoutTree(scene.nodes, edges, { nodeR: NODE_R })
     : layoutGraph(scene.nodes, { nodeR: NODE_R });
+  const points = Object.values(lay.points);
+  const padding = NODE_R + 12;
+  const crop = compact && points.length > 0;
+  const left = crop ? Math.min(...points.map(({ x }) => x)) - padding : 0;
+  const top = crop ? Math.min(...points.map(({ y }) => y)) - padding : 0;
+  const width = crop ? Math.max(...points.map(({ x }) => x)) + padding - left : lay.width;
+  const height = crop ? Math.max(...points.map(({ y }) => y)) + padding - top : lay.height;
 
   return (
     <svg
-      viewBox={`0 0 ${lay.width} ${lay.height}`}
-      width="100%"
+      viewBox={`${left} ${top} ${width} ${height}`}
+      width={compact ? width : '100%'}
       role="img"
       aria-label="当前步骤的树 / 图状态"
     >
@@ -264,11 +283,35 @@ function TreeGraphSvg({ scene }: { scene: Scene }) {
   );
 }
 
-function StackSvg({ scene }: { scene: Scene }) {
-  const width = 360;
+function QueueSvg({ nodes }: { nodes: Scene['nodes'] }) {
+  const width = 220;
+  const top = 46;
+  const rowHeight = 36;
+  const bottom = top + Math.max(3, nodes.length) * rowHeight;
+  return <svg className="queue-svg" viewBox={`54 0 ${width - 54} ${bottom + 40}`} width={width - 54} role="img" aria-label={`待访问队列，队头到队尾为 ${nodes.map(({ value }) => value).join('、') || '空'}`}>
+    <text x={width / 2} y={24} textAnchor="middle" fontSize="12" fill="var(--muted)">↑ 队头出队</text>
+    <path d={`M66 ${top} V${bottom} M154 ${top} V${bottom}`} fill="none" stroke="var(--muted)" strokeWidth="2" />
+    {nodes.map((node, index) => {
+      const y = top + index * rowHeight;
+      const color = COLOR[node.state ?? 'default'];
+      const label = nodes.length === 1 ? '头 / 尾' : index === 0 ? '队头' : index === nodes.length - 1 ? '队尾' : '';
+      return <g key={node.id}>
+        <rect x={72} y={y + 2} width={76} height={rowHeight - 4} rx={4} fill={color.fill} stroke={color.stroke} />
+        <text x={width / 2} y={y + rowHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="var(--text)">{node.value}</text>
+        {label && <text x={162} y={y + rowHeight / 2} dominantBaseline="central" fontSize="12" fill="var(--accent)">{label}</text>}
+      </g>;
+    })}
+    {nodes.length === 0 && <text x={width / 2} y={(top + bottom) / 2} textAnchor="middle" fontSize="13" fill="var(--muted)">空队列</text>}
+    <text x={width / 2} y={bottom + 24} textAnchor="middle" fontSize="12" fill="var(--muted)">↑ 队尾入队</text>
+  </svg>;
+}
+
+function StackSvg({ scene, compact = false }: { scene: Scene; compact?: boolean }) {
+  const callStack = scene.layout === 'call-stack';
+  const width = callStack ? 480 : 360;
   const opening = 48;
   const slotHeight = 32;
-  const slotWidth = 96;
+  const slotWidth = callStack ? 180 : 96;
   const left = (width - slotWidth) / 2;
   const right = left + slotWidth;
   const wallGap = 6;
@@ -280,10 +323,10 @@ function StackSvg({ scene }: { scene: Scene }) {
   const topY = top === null ? null : slotY(top) + slotHeight / 2;
 
   return (
-    <svg className="stack-svg" viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img"
-      aria-label={top === null ? `顺序栈，容量 ${capacity}，空栈，top 等于负一` : `顺序栈，容量 ${capacity}，栈顶下标 ${top}`}>
-      <text x={width / 2} y={26} textAnchor="middle" fontSize="13" fill="var(--muted)">↓ 入栈 · ↑ 出栈</text>
-      <text x={left - 25} y={opening - 7} textAnchor="middle" fontSize="11" fill="var(--muted)">下标</text>
+    <svg className="stack-svg" viewBox={compact ? `104 0 256 ${height}` : `0 0 ${width} ${height}`} width={compact ? 256 : '100%'} height={height} role="img"
+      aria-label={callStack ? `递归调用栈，当前 ${top === null ? '空' : scene.nodes[top].value}` : top === null ? `顺序栈，容量 ${capacity}，空栈，top 等于负一` : `顺序栈，容量 ${capacity}，栈顶下标 ${top}`}>
+      <text x={width / 2} y={26} textAnchor="middle" fontSize="13" fill="var(--muted)">{callStack ? '递归调用 ↓ 压栈 · 返回 ↑ 出栈' : '↓ 入栈 · ↑ 出栈'}</text>
+      <text x={left - 25} y={opening - 7} textAnchor="middle" fontSize="11" fill="var(--muted)">{callStack ? '层数' : '下标'}</text>
       <path d={`M${left - wallGap} ${opening} V${bottom} H${right + wallGap} V${opening}`}
         fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       {Array.from({ length: capacity }, (_, index) => {
@@ -296,18 +339,18 @@ function StackSvg({ scene }: { scene: Scene }) {
             fill={occupied ? color.fill : 'none'} stroke={occupied ? color.stroke : 'var(--faint)'}
             strokeDasharray={occupied ? undefined : '3 3'} />
           <text x={left - 25} y={y + slotHeight / 2} dominantBaseline="central" textAnchor="middle"
-            fontSize="12" fontFamily="monospace" fill="var(--muted)">{index}</text>
+            fontSize="12" fontFamily="monospace" fill="var(--muted)">{callStack ? index + 1 : index}</text>
           {occupied && <text x={width / 2} y={y + slotHeight / 2} dominantBaseline="central" textAnchor="middle"
             fontSize="15" fontFamily="monospace" fill="var(--text)">{cell.value}</text>}
         </g>;
       })}
       {topY === null ? (
-        <text x={right + 24} y={bottom + 23} fontSize="12" fill="var(--muted)">top = -1（空栈）</text>
+        <text x={right + 24} y={bottom + 23} fontSize="12" fill="var(--muted)">{callStack ? '调用栈为空' : 'top = -1（空栈）'}</text>
       ) : (
         <g>
           <path d={`M${right + 38} ${topY} H${right + 3} m5 -4 l-5 4 5 4`}
             fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          <text x={right + 44} y={topY} dominantBaseline="central" fontSize="13" fill="var(--accent)">top = {top}</text>
+          <text x={right + 44} y={topY} dominantBaseline="central" fontSize="13" fill="var(--accent)">{callStack ? '当前调用' : `top = ${top}`}</text>
         </g>
       )}
       <text x={width / 2} y={bottom + 23} textAnchor="middle" fontSize="12" fill="var(--muted)">栈底</text>
@@ -420,17 +463,19 @@ function LinearSvg({ scene }: { scene: Scene }) {
   const arrowId = useId();
   const arrow = `url(#${arrowId})`;
   const stringMatch = scene.layout === 'string-match';
-  const cw = stringMatch ? 30 : 62;
-  const cellHeight = stringMatch ? 34 : 44;
-  const gap = stringMatch ? 3 : 18;
-  const x0 = scene.layout === 'matrix' ? 78 : stringMatch ? 62 : 34;
+  const matrix = scene.layout === 'matrix';
+  const stackSequence = scene.aux?.layout === 'stack';
+  const cw = matrix || stackSequence ? 48 : stringMatch ? 30 : 62;
+  const cellHeight = matrix || stackSequence ? 36 : stringMatch ? 34 : 44;
+  const gap = matrix || stackSequence ? 8 : stringMatch ? 3 : 18;
+  const x0 = matrix ? 78 : stackSequence ? 16 : stringMatch ? 62 : 34;
   const cols = scene.cols && scene.cols > 0 ? scene.cols : Math.max(scene.nodes.length, scene.capacity ?? 0, 1);
   const rows = Math.max(1, Math.ceil(scene.nodes.length / cols));
   const grid = rows > 1;
-  const rowH = stringMatch ? 78 : 104;
-  const y0 = grid ? 46 : 76;
-  const height = grid ? 46 + rows * rowH : 200;
-  const width = Math.max(560, x0 * 2 + cols * (cw + gap));
+  const rowH = matrix ? 52 : stringMatch ? 78 : 104;
+  const y0 = stackSequence ? 46 : grid ? 46 : 76;
+  const height = stackSequence ? 116 : matrix ? y0 + (rows - 1) * rowH + cellHeight + 24 : grid ? 46 + rows * rowH : 200;
+  const width = stackSequence ? x0 * 2 + cols * (cw + gap) - gap : matrix ? x0 + cols * (cw + gap) - gap + 24 : Math.max(560, x0 * 2 + cols * (cw + gap));
   const detached = new Set(scene.detached ?? []);
   const nullPointers = (scene.pointers ?? []).filter((p) => p.index === null).map((p) => p.label);
   const isList = scene.kind === 'list';
@@ -439,12 +484,21 @@ function LinearSvg({ scene }: { scene: Scene }) {
   const showIndex = !grid;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label={isCircular ? '循环链表，尾结点指回首结点' : '当前步骤的数据结构状态'}>
+    <svg className={matrix ? 'matrix-svg' : undefined} viewBox={`0 0 ${width} ${height}`} width={matrix || stackSequence ? width : '100%'} role="img" aria-label={isCircular ? '循环链表，尾结点指回首结点' : '当前步骤的数据结构状态'}>
       <defs>
         <marker id={arrowId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
       </defs>
+
+      {matrix && scene.pointers?.filter((pointer) => pointer.axis !== 'row' && pointer.index !== null).map((pointer) => {
+        const column = pointer.index! % cols;
+        const x = x0 + column * (cw + gap) + cw / 2;
+        return <g key={pointer.label}>
+          <text x={x} y={y0 - 22} textAnchor="middle" fontSize="12" fill="#3C3489" fontFamily="monospace">{pointer.label} = {column}</text>
+          <path d={`M${x} ${y0 - 18} V${y0 - 4}`} fill="none" stroke="#534AB7" strokeWidth="1.5" markerEnd={arrow} />
+        </g>;
+      })}
 
       {listLinks && <ListArrows scene={scene} links={listLinks} x0={x0} y={y0} cellWidth={cw} cellHeight={cellHeight} gap={gap} arrow={arrow} />}
       {listLinks && nullPointers.length > 0 && (
@@ -471,7 +525,7 @@ function LinearSvg({ scene }: { scene: Scene }) {
         const firstCellCenter = x0 + cw / 2 - x;
         const firstCellBottom = y0 + cellHeight - y;
         const pointers = (scene.pointers ?? []).filter((p) => p.index === idx);
-        const labels = pointers.filter((p) => p.axis !== 'row').map((p) => p.label);
+        const labels = matrix ? [] : pointers.filter((p) => p.axis !== 'row').map((p) => p.label);
         const rowPointer = pointers.find((p) => p.axis === 'row');
         return (
           <g key={n.id} style={{

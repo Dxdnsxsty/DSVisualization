@@ -54,6 +54,7 @@ export interface ListLink {
 /** 辅助结构：归并排序的目标数组、基数排序的桶等，渲染在主舞台下方。 */
 export interface SceneAux {
   label: string;
+  layout?: 'stack' | 'queue';
   nodes: SceneNode[];
   pointers?: ScenePointer[];
   cols?: number;
@@ -64,7 +65,7 @@ export interface Scene {
   nodes: SceneNode[]; // 数组顺序即从左到右的排列顺序
   pointers?: ScenePointer[];
   capacity?: number; // 顺序表固定格子数（含空格子）
-  layout?: 'stack' | 'ring-queue' | 'matrix' | 'string-match';
+  layout?: 'stack' | 'call-stack' | 'ring-queue' | 'matrix' | 'string-match';
   note?: string;
   detached?: string[]; // 链表：这些结点尚未接入链（用于演示 s->next 赋值前的中间状态）
   circular?: boolean; // 链表：尾结点的 next 指回首结点

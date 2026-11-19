@@ -172,8 +172,17 @@ select:hover { border-color: #d8dbe3; }
 
 .topright { margin-left: auto; display: flex; gap: 18px; align-items: center; }
 .top-hint { font-size: 12px; color: var(--ok); font-weight: 500; }
-.top-hint.dim { color: var(--faint); font-weight: 400; cursor: pointer; }
-.top-hint.dim:hover { color: var(--accent); }
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  padding: 4px;
+  border-radius: var(--radius-ctl);
+  transition: color var(--dur) var(--ease);
+}
+.github-link:hover, .github-link:focus-visible { color: var(--accent); }
+.github-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .footer {
   margin-top: auto;
@@ -389,6 +398,19 @@ select:hover { border-color: #d8dbe3; }
 }
 .stage-canvas svg { display: block; min-width: 560px; }
 .stage-canvas :is(.stack-svg, .ring-queue-svg) { min-width: 0; }
+.stage-canvas .matrix-svg { min-width: 0; max-width: 100%; height: auto; margin-inline: auto; }
+.bracket-stage { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; }
+.bracket-sequence { min-width: 0; max-width: 100%; }
+.bracket-stack { width: 256px; max-width: 100%; }
+.bracket-sequence svg, .bracket-stack .stack-svg { min-width: 0; max-width: 100%; height: auto; }
+.bracket-stack .aux-label { display: block; text-align: center; }
+.stage:fullscreen .bracket-stage svg { min-height: 0; }
+.tree-queue-stage { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; }
+.queue-tree { width: max-content; max-width: 100%; min-width: 0; }
+.queue-side { width: 166px; max-width: 100%; }
+.queue-side .aux-label { display: block; text-align: center; }
+.queue-tree svg, .queue-side .queue-svg { min-width: 0; max-width: 100%; height: auto; }
+.stage:fullscreen .tree-queue-stage svg { min-height: 0; }
 
 /* 横向滚动提示：右侧渐隐 + 箭头，只提示「还能往右看」，不可点击 */
 .stage-viewport { position: relative; }
@@ -439,6 +461,7 @@ select:hover { border-color: #d8dbe3; }
 .stage:fullscreen { background: var(--bg); padding: 32px; overflow: auto; }
 .stage:fullscreen .stage-canvas { background: #fbfcfd; }
 .stage:fullscreen .stage-canvas svg { min-height: 60vh; }
+.stage:fullscreen .stage-canvas .matrix-svg { min-height: 0; }
 
 /* 辅助结构条：归并的目标数组、基数排序的桶、递归调用栈等 */
 .aux-wrap {

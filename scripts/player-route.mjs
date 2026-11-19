@@ -123,6 +123,37 @@ export async function checkPlayerRoute() {
       get().next();
       assert.deepEqual(get().trace[get().step], task.after);
     }],
+    ['KMP 和两种哈希表的题目、答案与逐步回放一致', () => {
+      const cases = [
+        ['string/kmp', '3', 'kmpCmp', 'kmpBack'],
+        ['search/hash-linear', '0', 'cmp', 'probe'],
+        ['search/hash-chain', '2', 'cmp', 'append'],
+      ];
+      for (const [slug, answer, before, after] of cases) {
+        const tasks = practiceQuestions(getAlgorithm(slug));
+        const task = tasks[0];
+        assert.equal(task.answer, answer);
+        assert.equal(task.before.anchor, before);
+        assert.equal(task.after.anchor, after);
+        for (const question of tasks) {
+          assert.equal(new Set(question.choices).size, question.choices.length);
+          assert.ok(question.choices.includes(question.answer));
+          assert.ok(question.choices.length > 1);
+        }
+        window.location.hash = '#/' + algorithmReplayPath(slug, { input: task.input, step: task.step });
+        const route = parseHash();
+        syncPlayerRoute(route.slug, route.replay);
+        assert.deepEqual(get().input, task.input);
+        assert.deepEqual(get().trace[get().step], task.before);
+        get().next();
+        assert.deepEqual(get().trace[get().step], task.after);
+      }
+      const kmp = practiceQuestions(getAlgorithm('string/kmp'));
+      assert.ok(kmp.some((task) => task.answer === '-1' && task.before.vars.i === task.after.vars.i));
+      const chain = practiceQuestions(getAlgorithm('search/hash-chain'));
+      assert.ok(chain.some((task) => task.after.anchor === 'found' && task.answer === '8'));
+      assert.ok(chain.some((task) => task.after.anchor === 'fail' && task.answer === '到达链尾，查找失败'));
+    }],
     ['非法输入和越界步数回到普通算法页', () => {
       for (const replay of [{ input: [1000, 2, 3], step: 1 }, { input: [1, 2, 3], step: 9999 }]) {
         open(second);

@@ -1,4 +1,4 @@
-import type { AlgorithmMeta, NodeState, ScenePointer, TraceStep } from '../../engine/types';
+import type { AlgorithmMeta, TraceStep } from '../../engine/types';
 import { arrayScene, makeStep, node } from '../../engine/scene';
 
 export const factorial: AlgorithmMeta = {
@@ -62,8 +62,6 @@ export const factorial: AlgorithmMeta = {
   generate: (input) => {
     const steps: TraceStep[] = [];
     const n = Math.min(Math.max(Math.trunc(input[0] || 5), 3), 8);
-    const vals = Array.from({ length: n + 1 }, (_, x) => n - x);
-    const states: Record<string, NodeState> = {};
     let t = 0;
 
     const push = (
@@ -74,14 +72,22 @@ export const factorial: AlgorithmMeta = {
       cur: number | null,
       extra: Record<string, string | number> = {},
     ) => {
-      const nodes = vals.map((v) => node(`f${v}`, v, v === cur ? 'active' : states[`f${v}`] ?? 'default'));
-      const pointers: ScenePointer[] = cur === null ? [] : [{ label: 'n', index: n - cur }];
+      const nodes = Array.from({ length: n + 1 }, (_, index) => node(
+        `f${n - index}`, stack[index] ?? '',
+        stack[index]?.includes('=') ? 'sorted' : index === stack.length - 1 ? 'active' : 'default',
+      ));
+      const pointers = [{ label: '栈顶', index: stack.length ? stack.length - 1 : null }];
       steps.push(
         makeStep(
           t++,
           anchor,
           phase,
-          arrayScene(nodes, pointers, undefined, `每格代表一层调用：fact(n)、fact(n-1) … fact(0)`),
+          {
+            ...arrayScene(nodes, pointers, n + 1, stack.length
+              ? `当前调用 ${stack.at(-1)} · 递归深度 ${stack.length}`
+              : `调用栈已清空 · fact(${n}) = ${extra.返回值}`),
+            layout: 'call-stack',
+          },
           {
             当前n: cur === null ? '—' : cur,
             递归深度: stack.length,
@@ -96,7 +102,6 @@ export const factorial: AlgorithmMeta = {
 
     const rec = (x: number, stack: string[]): number => {
       stack.push(`fact(${x})`);
-      states[`f${x}`] = 'active';
       push(
         'enter',
         '压栈',
@@ -109,7 +114,6 @@ export const factorial: AlgorithmMeta = {
 
       if (x === 0) {
         stack[stack.length - 1] = 'fact(0) = 1';
-        states['f0'] = 'sorted';
         push('base', '递归出口', 'n = 0，满足终止条件，不再递归，直接返回 1。', stack, x, { 返回值: 1 });
         stack.pop();
         return 1;
@@ -119,7 +123,6 @@ export const factorial: AlgorithmMeta = {
       const v = rec(x - 1, stack);
       const r = x * v;
       stack[stack.length - 1] = `fact(${x}) = ${r}`;
-      states[`f${x}`] = 'sorted';
       push(
         'mul',
         '返回相乘',

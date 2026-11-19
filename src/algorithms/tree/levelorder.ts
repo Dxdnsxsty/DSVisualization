@@ -98,7 +98,16 @@ export const levelorderTree: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          treeScene(nodes, edges, `队列：[${queueText()}]`),
+          {
+            ...treeScene(nodes, edges, `队列：[${queueText()}]`),
+            aux: {
+              label: '待访问结点队列',
+              layout: 'queue',
+              nodes: queue.slice(head).map((index, position, pending) => node(ids[index], vals[index],
+                position === pending.length - 1 && ['pushroot', 'enql', 'enqr'].includes(anchor) && phase.includes('入队')
+                  ? 'insert' : position === 0 ? 'active' : 'default')),
+            },
+          },
           {
             队首: head < queue.length ? vals[queue[head]] : '空',
             队尾: head < queue.length ? vals[queue[queue.length - 1]] : '空',
