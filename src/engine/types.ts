@@ -54,7 +54,7 @@ export interface ListLink {
 /** 辅助结构：归并排序的目标数组、基数排序的桶等，渲染在主舞台下方。 */
 export interface SceneAux {
   label: string;
-  layout?: 'stack' | 'queue';
+  layout?: 'stack' | 'call-stack' | 'queue';
   capacity?: number; // 辅助栈固定槽位数，空栈时仍显示容器
   nodes: SceneNode[];
   pointers?: ScenePointer[];
@@ -77,6 +77,7 @@ export interface Scene {
   subtrees?: { root: string; active?: SceneEdge['side'] }; // 当前递归结点的左右子树
   cols?: number; // array 折行成二维网格（矩阵、哈希表）时每行格子数
   aux?: SceneAux;
+  output?: { label: string; values: string[] }; // 累计输出，顺序与当前步骤一致
 }
 
 /** 累计关键字比较、交换与数据写入；writes 包含原数组及辅助数组/桶，交换计两次写入。 */

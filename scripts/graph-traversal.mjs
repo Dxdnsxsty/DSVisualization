@@ -52,8 +52,9 @@ function checkTrace(trace, kind, vertices, connections) {
   const visited = [];
   const marked = new Set(dfs ? [] : ['A']);
   const discovered = [];
+  const pending = dfs ? [] : ['A'];
   const currentLabel = (vertex) => dfs ? 'DFS(' + vertex + ')' : vertex;
-  for (const [i, { anchor, scene, vars }] of trace.entries()) {
+  for (const [i, { anchor, scene, vars, callStack }] of trace.entries()) {
     const at = '第 ' + (i + 1) + ' 步 (' + anchor + ') ';
     assert.equal(scene.graphTrace, 'traversal', at + '应使用遍历路径样式');
     assert.deepEqual(scene.nodes.map(({ value }) => value).sort(), vertices, at + '顶点集合不符');
@@ -62,6 +63,7 @@ function checkTrace(trace, kind, vertices, connections) {
       assert.ok(vertex, at + '多出访问步骤');
       assert.equal(vars.当前顶点, currentLabel(vertex), at + '访问顺序不符');
       visited.push(vertex);
+      if (dfs) pending.push(vertex);
     }
     if (dfs && anchor === 'mark') {
       const vertex = visited.at(-1);
@@ -77,6 +79,19 @@ function checkTrace(trace, kind, vertices, connections) {
       assert.ok(marked.has(from) && !marked.has(to), at + '发现边必须由已标记顶点指向新顶点');
       discovered.push(path);
       if (!dfs) marked.add(to);
+      if (!dfs) pending.push(to);
+    }
+
+    if (dfs && anchor === 'ret') pending.pop();
+    if (!dfs && anchor === 'dequeue') assert.equal(pending.shift(), vars.当前顶点, at + '队头出队不符');
+    const aux = scene.aux;
+    assert.equal(aux?.layout, dfs ? 'call-stack' : 'queue', at + '缺少可视辅助结构');
+    assert.deepEqual(aux.nodes.map(({ value }) => value), pending.map(currentLabel), at + '辅助结构内容不符');
+    assert.deepEqual(aux.nodes.map(({ id }) => id), pending.map((v) => `v${v}`), at + '辅助结构与图顶点不对应');
+    if (dfs) {
+      assert.equal(aux.capacity, vertices.length, at + '调用栈容量不符');
+      assert.deepEqual(aux.pointers, [{ label: 'top', index: pending.length ? pending.length - 1 : null }], at + '当前调用指针不符');
+      assert.deepEqual(callStack ?? [], pending.map(currentLabel), at + '调用栈面板与舞台不同步');
     }
 
     const values = new Map(scene.nodes.map(({ id, value }) => [id, value]));
@@ -121,6 +136,6 @@ export function checkGraphTraversal(algorithms) {
       } catch (error) { errors.push(slug + ' [' + n + ']：' + error.message); }
     }
   }
-  if (!errors.length) console.log('  图遍历通过：DFS / BFS 共 ' + (2 * sizes.length) + ' 组访问顺序与发现边用例。');
+  if (!errors.length) console.log('  图遍历通过：DFS / BFS 共 ' + (2 * sizes.length) + ' 组访问顺序、发现边与辅助栈／队列用例。');
   return errors;
 }

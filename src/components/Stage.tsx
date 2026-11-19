@@ -1,4 +1,4 @@
-import { forwardRef, useId, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { EdgeState, ListLink, NodeState, Scene, SceneEdge } from '../engine/types';
 import { layoutGraph, layoutTree, type LayoutPoint } from '../engine/layout';
 
@@ -38,10 +38,11 @@ const NODE_R = 21;
 
 interface Props {
   scene: Scene;
+  fullscreenControls?: ReactNode;
 }
 
 /** SVG 舞台：图元 id 稳定 + CSS transform 过渡 = 简化版 FLIP，交换/插入自带位移动画。 */
-export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene }, ref) {
+export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, fullscreenControls }, ref) {
   const isTreeGraph = scene.kind === 'tree' || scene.kind === 'graph';
   const canvasRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -112,13 +113,13 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
               <span className="aux-label">{scene.aux.label}</span>
               <QueueSvg nodes={scene.aux.nodes} />
             </div>
-          </div> : scene.aux?.layout === 'stack' ? <div className="bracket-stage">
+          </div> : scene.aux?.layout === 'stack' || scene.aux?.layout === 'call-stack' ? <div className="bracket-stage">
             <div className={isTreeGraph ? 'stack-graph' : 'bracket-sequence'}>
               {isTreeGraph ? <TreeGraphSvg scene={scene} compact /> : <LinearSvg scene={scene} />}
             </div>
-            <div className="bracket-stack">
+            <div className={scene.aux.layout === 'call-stack' ? 'bracket-stack call-stack-side' : 'bracket-stack'}>
               <span className="aux-label">{scene.aux.label}</span>
-              <StackSvg compact scene={{ kind: 'array', nodes: scene.aux.nodes, pointers: scene.aux.pointers, capacity: scene.aux.capacity ?? scene.aux.nodes.length }} />
+              <StackSvg compact scene={{ kind: 'array', layout: scene.aux.layout, nodes: scene.aux.nodes, pointers: scene.aux.pointers, capacity: scene.aux.capacity ?? scene.aux.nodes.length }} />
             </div>
           </div> : isTreeGraph ? <TreeGraphSvg scene={scene} /> :
             scene.layout === 'stack' || scene.layout === 'call-stack' ? <StackSvg scene={scene} /> :
@@ -144,6 +145,15 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
           </div>
         </div>
       )}
+          {scene.output && <div className="aux-wrap output-sequence" aria-label={scene.output.label}>
+            <span className="aux-label">{scene.output.label}</span>
+            <div className="aux-row">
+              {scene.output.values.length ? scene.output.values.map((value, index) => <span className="output-item" key={index}>
+                {index > 0 && <span aria-hidden="true">→</span>}
+                <span className="aux-cell">{value}</span>
+              </span>) : <span className="aux-label">尚未输出</span>}
+            </div>
+          </div>}
         </div>
         {hintRight && <span className="scroll-hint" aria-hidden="true" />}
       </div>
@@ -183,6 +193,7 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene },
         ))}
         </>}
       </div>
+      {fullscreenControls && <div className="stage-fullscreen-controls">{fullscreenControls}</div>}
     </div>
   );
 });
@@ -220,7 +231,7 @@ function TreeGraphSvg({ scene, compact = false }: { scene: Scene; compact?: bool
     ? layoutTree(scene.nodes, edges, { nodeR: NODE_R })
     : layoutGraph(scene.nodes, { nodeR: NODE_R });
   const points = Object.values(lay.points);
-  const padding = NODE_R + 12;
+  const padding = NODE_R + (scene.nodes.some(({ label, badge }) => label || badge) ? 24 : 12);
   const crop = compact && points.length > 0;
   const left = crop ? Math.min(...points.map(({ x }) => x)) - padding : 0;
   const top = crop ? Math.min(...points.map(({ y }) => y)) - padding : 0;
@@ -423,7 +434,7 @@ function StackSvg({ scene, compact = false }: { scene: Scene; compact?: boolean 
   const topY = top === null ? null : slotY(top) + slotHeight / 2;
 
   return (
-    <svg className="stack-svg" viewBox={compact ? `104 0 256 ${height}` : `0 0 ${width} ${height}`} width={compact ? 256 : '100%'} height={height} role="img"
+    <svg className="stack-svg" viewBox={compact ? `${callStack ? '84 0 396' : '90 0 270'} ${height}` : `0 0 ${width} ${height}`} width={compact ? callStack ? 396 : 270 : '100%'} height={height} role="img"
       aria-label={callStack ? `递归调用栈，当前 ${top === null ? '空' : scene.nodes[top].value}` : top === null ? `顺序栈，容量 ${capacity}，空栈，top 等于负一` : `顺序栈，容量 ${capacity}，栈顶下标 ${top}`}>
       <text x={width / 2} y={26} textAnchor="middle" fontSize="13" fill="var(--muted)">{callStack ? '递归调用 ↓ 压栈 · 返回 ↑ 出栈' : '↓ 入栈 · ↑ 出栈'}</text>
       <text x={left - 25} y={opening - 7} textAnchor="middle" fontSize="11" fill="var(--muted)">{callStack ? '层数' : '下标'}</text>

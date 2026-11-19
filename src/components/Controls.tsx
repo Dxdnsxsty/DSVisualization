@@ -3,7 +3,7 @@ import { usePlayer } from '../engine/player';
 import type { AlgorithmMeta } from '../engine/types';
 import { decodeMatchInput, DEFAULT_INPUT, parseInputText, parseMatchInput, randomInput, validateInput } from '../engine/input';
 
-export function Controls({ onFullscreen }: { onFullscreen: () => void }) {
+export function Controls({ onFullscreen, fullscreen = false }: { onFullscreen: () => void; fullscreen?: boolean }) {
   const p = usePlayer();
   const cur = p.trace[p.step];
   const total = p.trace.length;
@@ -44,17 +44,17 @@ export function Controls({ onFullscreen }: { onFullscreen: () => void }) {
           <option value={2}>2×</option>
           <option value={4}>4×</option>
         </select>
-        <button onClick={onFullscreen} title="全屏 (F)">全屏</button>
+        <button onClick={onFullscreen} title={fullscreen ? '退出全屏 (F / Esc)' : '全屏 (F)'}>{fullscreen ? '退出全屏' : '全屏'}</button>
       </div>
 
-      <div className="phase-chips">
+      {!fullscreen && <div className="phase-chips">
         <span className="muted">阶段跳转</span>
         {phases.map((ph) => (
           <button key={ph.name} className={cur?.phase === ph.name ? 'chip active' : 'chip'} onClick={() => p.setStep(ph.index)}>
             {ph.name}
           </button>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

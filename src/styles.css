@@ -401,7 +401,8 @@ select:hover { border-color: #d8dbe3; }
 .stage-canvas .matrix-svg { min-width: 0; max-width: 100%; height: auto; margin-inline: auto; }
 .bracket-stage { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; }
 .bracket-sequence { min-width: 0; max-width: 100%; }
-.bracket-stack { width: 256px; max-width: 100%; }
+.bracket-stack { width: 270px; max-width: 100%; }
+.call-stack-side { width: 396px; }
 .stack-graph { width: 420px; max-width: 100%; min-width: 0; }
 .stack-graph svg { min-width: 0; max-width: 100%; height: auto; }
 .bracket-sequence svg, .bracket-stack .stack-svg { min-width: 0; max-width: 100%; height: auto; }
@@ -419,6 +420,7 @@ select:hover { border-color: #d8dbe3; }
 /* 横向滚动提示：右侧渐隐 + 箭头，只提示「还能往右看」，不可点击 */
 .stage-viewport { position: relative; }
 .stage-content { display: contents; }
+.stage-fullscreen-controls { display: none; }
 .scroll-hint {
   position: absolute;
   top: 1px;
@@ -493,6 +495,18 @@ select:hover { border-color: #d8dbe3; }
 .stage:fullscreen :is(.adjacency-stage, .tree-queue-stage, .bracket-stage, .aux-wrap, .aux-row) { flex-wrap: nowrap; }
 .stage:fullscreen :is(.adjacency-graph, .adjacency-table, .queue-tree, .queue-side, .bracket-sequence, .bracket-stack, .stack-graph) { flex: none; max-width: none; }
 .stage:fullscreen .scroll-hint { display: none; }
+.stage:fullscreen .stage-fullscreen-controls { display: block; flex: none; margin-top: 12px; }
+.stage:fullscreen .stage-fullscreen-controls .controls-panel { border: 0; padding: 0; }
+.stage:fullscreen .stage-fullscreen-controls .caption { margin-bottom: 8px; }
+.output-item { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.output-item .aux-cell { background: #E1F5EE; border-color: #1D9E75; }
+
+@media (max-height: 600px) {
+  .stage:fullscreen { padding: 12px; }
+  .stage:fullscreen .legend { gap: 6px 12px; }
+  .stage:fullscreen .stage-head { margin-bottom: 6px; }
+  .stage:fullscreen .stage-fullscreen-controls { margin-top: 6px; }
+}
 
 /* 辅助结构条：归并的目标数组、基数排序的桶、递归调用栈等 */
 .aux-wrap {

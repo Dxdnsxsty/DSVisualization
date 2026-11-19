@@ -114,7 +114,7 @@ export const topoSort: AlgorithmMeta = {
 
     const push = (anchor: string, phase: string, caption: string, cur: string) => {
       const nodes = VEX.slice(0, n).map((v, i) =>
-        nodeAt(ids[i], v, POS[i].x, POS[i].y, states[ids[i]] ?? 'default'),
+        nodeAt(ids[i], v, POS[i].x, POS[i].y, states[ids[i]] ?? 'default', `入度 ${indeg[i]}`),
       );
       const edges = pairs.map(([a, b]) =>
         edge(ids[a], ids[b], undefined, eStates[`${a}>${b}`] ?? 'default', true),
@@ -127,6 +127,7 @@ export const topoSort: AlgorithmMeta = {
           {
             ...graphScene(nodes, edges, `已输出 ${order.length} / ${n} 个顶点`),
             graphTrace: 'topology',
+            output: { label: '拓扑输出序列', values: order.map((v) => VEX[v]) },
             aux: {
               label: '入度为 0 的待输出顶点栈',
               layout: 'stack',

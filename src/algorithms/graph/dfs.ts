@@ -100,7 +100,20 @@ export const dfsGraph: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          { ...graphScene(nodes, edges, `从 A 出发，已访问 ${visited.filter(Boolean).length} / ${n}`), graphTrace: 'traversal' },
+          {
+            ...graphScene(nodes, edges, `从 A 出发，已访问 ${visited.filter(Boolean).length} / ${n}`),
+            graphTrace: 'traversal',
+            aux: {
+              label: 'DFS 递归调用栈',
+              layout: 'call-stack',
+              capacity: n,
+              nodes: stack.map((v, index) => ({
+                id: ids[v], value: `DFS(${VEX[v]})`,
+                state: index === stack.length - 1 ? 'active' : 'default',
+              })),
+              pointers: [{ label: 'top', index: stack.length ? stack.length - 1 : null }],
+            },
+          },
           {
             当前顶点: callStack.at(-1) ?? '—',
             已访问: visited.map((b, i) => (b ? VEX[i] : '')).filter(Boolean).join('') || '空',

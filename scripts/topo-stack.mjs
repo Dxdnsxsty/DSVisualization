@@ -17,6 +17,8 @@ export function checkTopoStack(algorithms) {
       const trace = algo.generate([n]);
       assert.equal(trace.length, stack.length);
       const removed = new Set();
+      const output = [];
+      const dependencies = ['AB', 'AC', 'BD', 'CD', 'CE', 'DF', 'EF'].filter((pair) => [...pair].every((v) => v.charCodeAt(0) < 65 + n));
       trace.forEach((step, index) => {
         assert.equal(step.scene.graphTrace, 'topology');
         if (step.anchor === 'dec') {
@@ -25,6 +27,13 @@ export function checkTopoStack(algorithms) {
         }
         for (const edge of step.scene.edges) {
           assert.equal(edge.state, removed.has(`${edge.from}>${edge.to}`) ? 'removed' : 'default', `步骤 ${index} 删边状态`);
+        }
+        if (step.anchor === 'pop') output.push(stack[index - 1].at(-1));
+        assert.deepEqual(step.scene.output, { label: '拓扑输出序列', values: output }, `步骤 ${index} 输出序列`);
+        assert.equal(step.vars.输出序列, output.join(' ') || '空');
+        for (const vertex of step.scene.nodes) {
+          const indegree = dependencies.filter(([from, to]) => to === vertex.value && !removed.has(`v${from}>v${to}`)).length;
+          assert.equal(vertex.label, `入度 ${indegree}`, `步骤 ${index} ${vertex.value} 入度标签`);
         }
         const aux = step.scene.aux;
         const expected = stack[index];

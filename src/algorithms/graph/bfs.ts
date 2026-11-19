@@ -120,7 +120,19 @@ export const bfsGraph: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          { ...graphScene(nodes, edges, `从 A 出发，已标记 ${visited.filter(Boolean).length} 个顶点`), graphTrace: 'traversal' },
+          {
+            ...graphScene(nodes, edges, `从 A 出发，已标记 ${visited.filter(Boolean).length} 个顶点`),
+            graphTrace: 'traversal',
+            aux: {
+              label: 'BFS 待扩展顶点队列',
+              layout: 'queue',
+              nodes: queue.map((v, index) => ({
+                id: ids[v], value: VEX[v],
+                state: index === queue.length - 1 && ['init', 'enqueue'].includes(anchor)
+                  ? 'insert' : index === 0 ? 'active' : 'default',
+              })),
+            },
+          },
           {
             队列: queue.map((v) => VEX[v]).join(' ') || '空',
             当前顶点: cur >= 0 ? VEX[cur] : '—',
