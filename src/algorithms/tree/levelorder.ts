@@ -12,7 +12,7 @@ export const levelorderTree: AlgorithmMeta = {
   summary: '队列逐层扩展，先进先出保证按层访问。',
   complexity: { time: 'O(n)', space: 'O(w)', extra: 'w 为树的最大宽度，即队列峰值' },
   difficulty: '入门',
-  inputHint: '输入 3–15 个整数，按层序建完全二叉树（第 i 个结点的孩子是 2i+1、2i+2）。',
+  inputHint: '输入 2–15 个整数，按层序建完全二叉树（第 i 个结点的孩子是 2i+1、2i+2）。',
   defaultInput: DEFAULT,
   input: { min: -999, max: 999, minLen: 2, maxLen: 15 },
   code: {

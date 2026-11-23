@@ -86,8 +86,8 @@ export const binarySearch: AlgorithmMeta = {
       mid: number | null = null,
     ) => {
       const pointers: ScenePointer[] = [
-        { label: 'low', index: low },
-        { label: 'high', index: high },
+        low < n ? { label: 'low', index: low } : { label: 'low', index: null, outside: low },
+        high >= 0 ? { label: 'high', index: high } : { label: 'high', index: null, outside: high },
       ];
       if (mid !== null) pointers.push({ label: 'mid', index: mid });
       steps.push(

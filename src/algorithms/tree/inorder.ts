@@ -12,7 +12,7 @@ export const inorderTree: AlgorithmMeta = {
   summary: '左 → 根 → 右，先递归到底再回头访问。',
   complexity: { time: 'O(n)', space: 'O(h)', extra: 'h 为树高，递归栈深度' },
   difficulty: '入门',
-  inputHint: '输入 3–15 个整数，按层序建完全二叉树（第 i 个结点的孩子是 2i+1、2i+2）。',
+  inputHint: '输入 2–15 个整数，按层序建完全二叉树（第 i 个结点的孩子是 2i+1、2i+2）。',
   defaultInput: DEFAULT,
   input: { min: -999, max: 999, minLen: 2, maxLen: 15 },
   code: {

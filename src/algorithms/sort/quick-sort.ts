@@ -98,7 +98,7 @@ export const quickSort: AlgorithmMeta = {
       const nodes = ids.map((id, idx) =>
         node(id, arr[idx], states[idx] ?? (final.has(idx) ? 'sorted' : 'default')),
       );
-      const pointers: ScenePointer[] = [
+      const pointers: ScenePointer[] = info.lo > info.hi ? [] : [
         { label: 'i', index: info.i >= 0 ? info.i : null },
         { label: 'j', index: info.j >= 0 ? info.j : null },
       ];
@@ -123,7 +123,7 @@ export const quickSort: AlgorithmMeta = {
 
     const qs = (s: number, t: number, stack: string[]): void => {
       stack.push(`Qsort(${s}, ${t})`);
-      push('enter', '进入区间', `处理子区间 [${s}, ${t}]。`, {}, stack, { lo: s, hi: t, pivot: '—', i: s, j: t });
+      if (s <= t) push('enter', '进入区间', `处理子区间 [${s}, ${t}]。`, {}, stack, { lo: s, hi: t, pivot: '—', i: s, j: t });
       if (s >= t) {
         if (s === t) final.add(s);
         push(

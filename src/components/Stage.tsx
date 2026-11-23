@@ -654,7 +654,8 @@ function LinearSvg({ scene }: { scene: Scene }) {
   const cw = matrix || stackSequence ? 48 : stringMatch ? 30 : 62;
   const cellHeight = matrix || stackSequence ? 36 : stringMatch ? 34 : 44;
   const gap = matrix || stackSequence ? 8 : stringMatch ? 3 : 18;
-  const x0 = matrix ? 78 : stackSequence ? 16 : stringMatch ? 62 : 34;
+  const boundaryPointers = (scene.pointers ?? []).filter((p) => p.outside !== undefined);
+  const x0 = boundaryPointers.length ? 76 : matrix ? 78 : stackSequence ? 16 : stringMatch ? 62 : 34;
   const cols = scene.cols && scene.cols > 0 ? scene.cols : Math.max(scene.nodes.length, scene.capacity ?? 0, 1);
   const rows = Math.max(1, Math.ceil(scene.nodes.length / cols));
   const grid = rows > 1;
@@ -663,7 +664,7 @@ function LinearSvg({ scene }: { scene: Scene }) {
   const height = stackSequence ? 116 : matrix ? y0 + (rows - 1) * rowH + cellHeight + 24 : grid ? 46 + rows * rowH : 200;
   const width = stackSequence ? x0 * 2 + cols * (cw + gap) - gap : matrix ? x0 + cols * (cw + gap) - gap + 24 : Math.max(560, x0 * 2 + cols * (cw + gap));
   const detached = new Set(scene.detached ?? []);
-  const nullPointers = (scene.pointers ?? []).filter((p) => p.index === null).map((p) => p.label);
+  const nullPointers = (scene.pointers ?? []).filter((p) => p.index === null && p.outside === undefined).map((p) => p.label);
   const isList = scene.kind === 'list';
   const isCircular = isList && scene.circular;
   const listLinks = isList ? scene.listLinks : undefined;
@@ -677,6 +678,14 @@ function LinearSvg({ scene }: { scene: Scene }) {
         </marker>
       </defs>
 
+      {boundaryPointers.map(({ label, outside }) => {
+        const x = outside! < 0 ? x0 / 2 : x0 + cols * (cw + gap) + 20;
+        return <g key={label}>
+          <text x={x} y={y0 - 22} textAnchor="middle" fontSize="12" fill="#3C3489">{label} = {outside}</text>
+          <path d={`M${x} ${y0 - 18} V${y0 - 4}`} fill="none" stroke="#534AB7" markerEnd={arrow} />
+          <text x={x} y={y0 + cellHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="12" fill="var(--muted)">越界</text>
+        </g>;
+      })}
       {matrix && scene.pointers?.filter((pointer) => pointer.axis !== 'row' && pointer.index !== null).map((pointer) => {
         const column = pointer.index! % cols;
         const x = x0 + column * (cw + gap) + cw / 2;

@@ -40,6 +40,7 @@ export interface SceneNode {
 }
 
 export interface ScenePointer {
+  outside?: number; // 数组边界之外的下标，仅用于展示
   label: string;
   index: number | null; // null 表示指向 NULL
   axis?: 'row'; // 矩阵行指针位于行首左侧

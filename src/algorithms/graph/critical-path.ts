@@ -37,7 +37,7 @@ export const criticalPath: AlgorithmMeta = {
   summary: '正推最早时间、逆推最迟时间，挑出零机动的活动。',
   complexity: { time: 'O(n+e)', space: 'O(n)', extra: '先拓扑排序，再正逆两遍扫描' },
   difficulty: '进阶',
-  inputHint: '固定输入 6 个事件，在示例 AOE 网上演示关键路径的求解过程。',
+  inputHint: '输入事件数量（4–6），在示例 AOE 网上演示关键路径的求解过程。',
   defaultInput: [6],
   input: { min: 4, max: 6, minLen: 1, maxLen: 1 },
   code: {

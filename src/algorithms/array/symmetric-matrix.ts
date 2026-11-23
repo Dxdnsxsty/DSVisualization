@@ -10,7 +10,7 @@ export const symmetricMatrix: AlgorithmMeta = {
   summary: '下三角按行优先存，k 一次算出。',
   complexity: { time: 'O(n²)', space: 'O(n²)', extra: '存储量由 n² 降到 n(n+1)/2' },
   difficulty: '入门',
-  inputHint: '输入矩阵阶数 n（3–6），演示 4×4 对称矩阵按行优先压缩到一维数组的过程。',
+  inputHint: '输入矩阵阶数 n（3–6），演示 n×n 对称矩阵按行优先压缩到一维数组的过程。',
   defaultInput: [4],
   input: { min: 3, max: 6, minLen: 1, maxLen: 1 },
   code: {

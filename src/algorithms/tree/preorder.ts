@@ -10,7 +10,7 @@ export const preorderTree: AlgorithmMeta = {
   summary: '根 → 左 → 右，观察递归进出栈的顺序。',
   complexity: { time: 'O(n)', space: 'O(h)', extra: 'h 为树高，递归栈深度' },
   difficulty: '入门',
-  inputHint: '输入 3–15 个整数，按层序建完全二叉树（第 i 个结点的孩子是 2i+1、2i+2）。',
+  inputHint: '输入 2–15 个整数，按层序建完全二叉树（第 i 个结点的孩子是 2i+1、2i+2）。',
   defaultInput: [1, 2, 3, 4, 5, 6, 7],
   input: { min: -999, max: 999, minLen: 2, maxLen: 15 },
   code: {

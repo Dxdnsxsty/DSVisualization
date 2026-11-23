@@ -20,7 +20,7 @@ export const huffmanTree: AlgorithmMeta = {
       { text: '  // 森林中每棵树都只有一个叶子结点', anchor: 'init' },
       { text: '  for (int i = 0; i < n; i++) HT[i] = {w[i], -1, -1, -1};' },
       { text: '  for (int i = 1; i < n; i++) {' },
-      { text: '    SelectTwo(HT, n + i - 1, p1, p2);  // 选权值最小的两棵', anchor: 'pick' },
+      { text: '    SelectTwo(HT, n + i - 1, p1, p2);  // 按权值、创建下标升序选两棵根树', anchor: 'pick' },
       { text: '    HT[n + i - 1] = {HT[p1].w + HT[p2].w, p1, p2, -1};', anchor: 'merge' },
       { text: '    HT[p1].parent = HT[p2].parent = n + i - 1;' },
       { text: '  }' },
@@ -124,7 +124,8 @@ export const huffmanTree: AlgorithmMeta = {
     );
 
     while (roots.length > 1) {
-      const sorted = [...roots].sort((x, y) => (weight[x] - weight[y] || (x < y ? -1 : 1)));
+      // 根按创建顺序追加，稳定排序与 Python 的同权处理一致。
+      const sorted = [...roots].sort((x, y) => weight[x] - weight[y]);
       const a = sorted[0];
       const b = sorted[1];
       states[a] = 'active';
