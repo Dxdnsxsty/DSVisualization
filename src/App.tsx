@@ -68,15 +68,19 @@ export default function App() {
     const on = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
-      if (target && (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName) || target.closest('[role="button"]'))) return;
+      if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
       if (route.name !== 'algo' || route.slug !== p.slug) return;
+      if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (!e.repeat) toggleFullscreen();
+        return;
+      }
+      if (target?.closest('button, [role="button"]')) return;
       switch (e.key) {
         case ' ': e.preventDefault(); p.toggle(); break;
         case 'ArrowLeft': e.preventDefault(); p.prev(); break;
         case 'ArrowRight': e.preventDefault(); p.next(); break;
         case 'Home': e.preventDefault(); p.setStep(0); break;
         case 'End': e.preventDefault(); p.setStep(p.trace.length - 1); break;
-        case 'f': case 'F': toggleFullscreen(); break;
         case '1': p.setSpeed(0.5); break;
         case '2': p.setSpeed(1); break;
         case '3': p.setSpeed(2); break;

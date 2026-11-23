@@ -46,7 +46,8 @@ export const floydShortest: AlgorithmMeta = {
       { text: '  for (int k = 0; k < G.n; k++) {', anchor: 'k' },
       { text: '    for (int i = 0; i < G.n; i++)', anchor: 'ij' },
       { text: '      for (int j = 0; j < G.n; j++)' },
-      { text: '        if (D[i][j] > D[i][k] + D[k][j])', anchor: 'cmp' },
+      { text: '        if (D[i][k] != INF && D[k][j] != INF &&' },
+      { text: '            D[i][j] > D[i][k] + D[k][j])', anchor: 'cmp' },
       { text: '          D[i][j] = D[i][k] + D[k][j];', anchor: 'update' },
       { text: '  }', anchor: 'done' },
       { text: '}' },
@@ -57,6 +58,8 @@ export const floydShortest: AlgorithmMeta = {
       { text: '    for k in range(g.n):', anchor: 'k' },
       { text: '        for i in range(g.n):', anchor: 'ij' },
       { text: '            for j in range(g.n):' },
+      { text: '                if D[i][k] == INF or D[k][j] == INF:' },
+      { text: '                    continue' },
       { text: '                if D[i][j] > D[i][k] + D[k][j]:', anchor: 'cmp' },
       { text: '                    D[i][j] = D[i][k] + D[k][j]', anchor: 'update' },
       { text: '    return D', anchor: 'done' },
@@ -69,7 +72,7 @@ export const floydShortest: AlgorithmMeta = {
       points: [
         'k 必须放在最外层：每轮加入一个新的中转顶点，前面轮次的结果才能被复用',
         'i、j 的顺序无所谓，但 k 换到内层会漏掉某些组合',
-        'D[i][i] 为负说明存在负权回路，最短路失去意义',
+        '完整算法也检查对角线。若 D[i][i] < 0，说明存在负权回路；当前示例无负权回路，动画省略对角线和 i = k 或 j = k 的无变化步骤。',
       ],
     },
     {

@@ -58,6 +58,17 @@ async function fits(page: Page) {
   })).toEqual([]);
 }
 
+test('全屏按钮获得焦点后 F 仍能退出全屏', async ({ page }) => {
+  await mockFullscreen(page);
+  await page.goto('/#/algo/graph/floyd');
+  await enter(page);
+  const button = page.getByRole('button', { name: '退出全屏', exact: true });
+  await button.focus();
+  await page.keyboard.press('f');
+  await expect(page.getByRole('button', { name: '进入全屏', exact: true })).toBeVisible();
+  await expect(page.locator('.stage-fullscreen-controls')).toBeHidden();
+});
+
 async function seek(page: Page, index: number) {
   await page.locator('.stage-fullscreen-controls input.progress').evaluate((element, value) => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(element, String(value));
