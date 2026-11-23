@@ -701,6 +701,7 @@ select:hover { border-color: #d8dbe3; }
   transition: background-color 220ms ease;
 }
 .code-line.clickable { cursor: pointer; }
+.code-line.clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .code-line.clickable:hover { background: #eef1f5; }
 /* 背景与左边框交给 .code-caret，这里只保留行号变色 */
 .code-line.active { background: transparent; }
@@ -959,6 +960,7 @@ select:hover { border-color: #d8dbe3; }
 @media (prefers-reduced-motion: reduce) {
   .stage-canvas g { transition: none !important; }
   .code-line { transition: none !important; }
+  .code-caret { transition: none !important; }
   .algo-card:hover { transform: none; }
   * { animation-duration: 0.01ms !important; }
 }

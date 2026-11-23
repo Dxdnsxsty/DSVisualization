@@ -1,19 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { usePlayer } from '../engine/player';
 import type { AlgorithmMeta } from '../engine/types';
 import { decodeMatchInput, DEFAULT_INPUT, parseInputText, parseMatchInput, randomInput, validateInput } from '../engine/input';
 
 export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
-  const p = usePlayer();
+  const p = usePlayer(useShallow(({ trace, step, playing, speed, setStep, prev, next, toggle, setSpeed }) =>
+    ({ trace, step, playing, speed, setStep, prev, next, toggle, setSpeed })));
   const cur = p.trace[p.step];
   const total = p.trace.length;
 
   // 阶段去重：同名阶段只保留首次出现的步骤，点击即可跳转
-  const phases: { name: string; index: number }[] = [];
-  const seen = new Set<string>();
-  p.trace.forEach((s, i) => {
-    if (!seen.has(s.phase)) { seen.add(s.phase); phases.push({ name: s.phase, index: i }); }
-  });
+  const phases = useMemo(() => {
+    const result: { name: string; index: number }[] = [];
+    const seen = new Set<string>();
+    p.trace.forEach((s, i) => {
+      if (!seen.has(s.phase)) { seen.add(s.phase); result.push({ name: s.phase, index: i }); }
+    });
+    return result;
+  }, [p.trace]);
 
   return (
     <div className="panel controls-panel">
@@ -59,7 +64,7 @@ export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
 }
 
 export function InputBar({ algo }: { algo: AlgorithmMeta }) {
-  const p = usePlayer();
+  const p = usePlayer(useShallow(({ input, regenerate }) => ({ input, regenerate })));
   // 校验规则来自算法元数据，不再全站写死「2–10 个 -999~999 的整数」
   const spec = algo.input ?? DEFAULT_INPUT;
   const stringMatch = spec.format === 'string-match';

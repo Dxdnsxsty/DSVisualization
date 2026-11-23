@@ -1,13 +1,29 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { navigate, useRoute } from './engine/router';
 import { usePlayer } from './engine/player';
 import { completedPlayerSlug, schedulePlayerAdvance, syncPlayerRoute } from './engine/player-route';
 import { clearScroll } from './engine/scroll';
-import { AlgorithmPage } from './pages/AlgorithmPage';
 import { MapPage } from './components/Placeholder';
-import { ComparePage } from './pages/ComparePage';
-import { PracticeLab } from './pages/PracticeLab';
 import { markLearned } from './components/Catalog';
+
+const AlgorithmPage = lazy(() => import('./pages/AlgorithmPage').then((module) => ({ default: module.AlgorithmPage })));
+const ComparePage = lazy(() => import('./pages/ComparePage').then((module) => ({ default: module.ComparePage })));
+const PracticeLab = lazy(() => import('./pages/PracticeLab').then((module) => ({ default: module.PracticeLab })));
+
+// 播放调度单独订阅步骤，避免每次推进都重绘导航和整页内容。
+function PlayerEffects({ slug }: { slug: string }) {
+  const loadedSlug = usePlayer((state) => state.slug);
+  const playing = usePlayer((state) => state.playing);
+  const step = usePlayer((state) => state.step);
+  const speed = usePlayer((state) => state.speed);
+  const trace = usePlayer((state) => state.trace);
+  useEffect(() => schedulePlayerAdvance(slug), [slug, loadedSlug, playing, step, speed, trace]);
+  useEffect(() => {
+    const completed = completedPlayerSlug(slug);
+    if (completed) markLearned(completed);
+  }, [slug, loadedSlug, step, trace]);
+  return null;
+}
 
 type MobileTab = 'stage' | 'nav' | 'code' | 'explain';
 
@@ -20,7 +36,6 @@ const TABS: { key: MobileTab; label: string }[] = [
 
 export default function App() {
   const route = useRoute();
-  const p = usePlayer();
   const stageRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<MobileTab>('stage');
   const [fullscreenError, setFullscreenError] = useState('');
@@ -38,7 +53,7 @@ export default function App() {
     }
   }, [route.name]);
 
-  const toggleFullscreen = async () => {
+  const toggleFullscreen = useCallback(async () => {
     const el = stageRef.current;
     if (!el) return;
     setFullscreenError('');
@@ -50,25 +65,18 @@ export default function App() {
     } catch {
       setFullscreenError(exiting ? '无法退出全屏，请尝试按 Esc。' : '无法进入全屏，请检查浏览器的全屏权限。');
     }
-  };
+  }, []);
 
   useEffect(() => { setFullscreenError(''); }, [slug]);
   useLayoutEffect(() => { syncPlayerRoute(slug, replay); }, [slug, replay]);
 
-  useEffect(() => schedulePlayerAdvance(slug), [slug, p.slug, p.playing, p.step, p.speed, p.trace]);
-
-  // 播放到末尾即标记「已学」，只写浏览器本地，不涉及账号
-  useEffect(() => {
-    const completed = completedPlayerSlug(slug);
-    if (completed) markLearned(completed);
-  }, [slug, p.slug, p.step, p.trace]);
-
-  // 键盘快捷键（每次渲染重新绑定，确保闭包里拿到最新状态）
+  // 按键触发时读取最新状态，不随播放步骤反复绑定监听器。
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+      const p = usePlayer.getState();
       if (route.name !== 'algo' || route.slug !== p.slug) return;
       if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         if (!e.repeat) toggleFullscreen();
@@ -89,7 +97,7 @@ export default function App() {
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
-  });
+  }, [route, toggleFullscreen]);
 
   return (
     <div className="app">
@@ -113,29 +121,32 @@ export default function App() {
         </div>
       </header>
 
-      {route.name === 'algo' && (
-        <>
-          <div className="mobile-tabs">
-            {TABS.map((t) => (
-              <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
-            ))}
-          </div>
-          <AlgorithmPage
-            slug={slug}
-            stageRef={stageRef}
-            onFullscreen={toggleFullscreen}
-            fullscreenError={fullscreenError}
-            mobileTab={tab}
-            onNavigate={() => setTab('stage')}
-          />
-        </>
-      )}
-      {route.name === 'map' && <MapPage />}
-      {route.name === 'compare' && <ComparePage />}
-      {route.name === 'lab' && <PracticeLab />}
+      <PlayerEffects slug={slug} />
+      <Suspense fallback={<main className="page" role="status">正在加载页面…</main>}>
+        {route.name === 'algo' && (
+          <>
+            <div className="mobile-tabs">
+              {TABS.map((t) => (
+                <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
+              ))}
+            </div>
+            <AlgorithmPage
+              slug={slug}
+              stageRef={stageRef}
+              onFullscreen={toggleFullscreen}
+              fullscreenError={fullscreenError}
+              mobileTab={tab}
+              onNavigate={() => setTab('stage')}
+            />
+          </>
+        )}
+        {route.name === 'map' && <MapPage />}
+        {route.name === 'compare' && <ComparePage />}
+        {route.name === 'lab' && <PracticeLab />}
+      </Suspense>
 
       <footer className="footer">
-        数据结构可视化 · P0 原型 · MIT 开源 · 内容按课程章节组织，欢迎提 PR 补充算法与讲解
+        数据结构可视化 · MIT 开源 · 内容按课程章节组织，欢迎提 PR 补充算法与讲解
       </footer>
     </div>
   );

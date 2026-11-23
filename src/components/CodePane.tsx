@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { usePlayer } from '../engine/player';
 import { tokenize } from '../engine/highlight';
 import { decodeMatchInput } from '../engine/input';
@@ -7,9 +8,10 @@ import type { AlgorithmMeta, TraceStep } from '../engine/types';
 const LANG_LABEL: Record<string, string> = { cpp: 'C++', python: 'Python' };
 
 export function CodePane({ algo }: { algo: AlgorithmMeta }) {
-  const p = usePlayer();
-  const lines = algo.code[p.lang] ?? [];
-  const activeAnchor = p.trace[p.step]?.anchor;
+  const p = usePlayer(useShallow(({ lang, input, setLang, jumpToAnchor }) => ({ lang, input, setLang, jumpToAnchor })));
+  const lines = algo.code[p.lang] ?? algo.code.cpp;
+  const activeAnchor = usePlayer((state) => state.trace[state.step]?.anchor);
+  const tokenLines = useMemo(() => lines.map((line) => tokenize(line.text, p.lang)), [lines, p.lang]);
   const [copied, setCopied] = useState(false);
 
   const boxRef = useRef<HTMLDivElement>(null);
@@ -54,7 +56,7 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
     else if (top + height > box.scrollTop + box.clientHeight - pad) {
       box.scrollTop = top + height - box.clientHeight + pad;
     }
-  }, [activeAnchor, p.lang, lines.length]);
+  }, [activeAnchor, p.lang, lines]);
 
   const copy = async () => {
     try {
@@ -108,11 +110,19 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
             key={i}
             className={'code-line' + (line.anchor && line.anchor === activeAnchor ? ' active' : '') + (line.anchor ? ' clickable' : '')}
             onClick={() => line.anchor && p.jumpToAnchor(line.anchor)}
+            role={line.anchor ? 'button' : undefined}
+            tabIndex={line.anchor ? 0 : undefined}
+            onKeyDown={(event) => {
+              if (line.anchor && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                p.jumpToAnchor(line.anchor);
+              }
+            }}
             title={line.anchor ? `跳到锚点 ${line.anchor} 对应的步骤` : undefined}
           >
             <span className="ln">{i + 1}</span>
             <code>
-              {tokenize(line.text, p.lang).map((t, j) => (
+              {tokenLines[i].map((t, j) => (
                 <span key={j} className={`tok-${t.kind}`}>{t.text}</span>
               ))}
             </code>
@@ -146,7 +156,7 @@ export function VarPane({ step }: { step: TraceStep }) {
         <div className="var-empty">
           {step.callStack?.length
             ? step.callStack.map((f, i) => <div key={i} className="stack-frame">#{i} {f}</div>)
-            : '本算法不涉及递归；递归栈可视化字段 TraceStep.callStack 已预留，P1 接入递归算法后启用。'}
+            : '当前步骤没有活动的递归调用。'}
         </div>
       )}
     </section>

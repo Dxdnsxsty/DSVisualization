@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { algorithms, getAlgorithm } from '../algorithms/registry';
+import { algorithms } from '../algorithms/registry';
 import { navigate } from '../engine/router';
 import type { AlgorithmMeta, QuizItem } from '../engine/types';
 
@@ -52,7 +52,7 @@ export function Explain({ algo }: { algo: AlgorithmMeta }) {
             )}
           </div>
         ))}
-        <Quiz items={algo.quiz} />
+        <Quiz key={algo.slug} items={algo.quiz} />
         <div className="related">
           <h3>继续学习</h3>
           <div className="related-links">

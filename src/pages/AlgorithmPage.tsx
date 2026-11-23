@@ -18,20 +18,23 @@ interface Props {
   onNavigate?: () => void;
 }
 
+function PlayerStage({ stageRef, onFullscreen, fullscreenError }: Pick<Props, 'stageRef' | 'onFullscreen' | 'fullscreenError'>) {
+  const scene = usePlayer((state) => state.trace[state.step]?.scene);
+  return scene ? <Stage ref={stageRef} scene={scene} onFullscreen={onFullscreen} fullscreenError={fullscreenError} fullscreenControls={<Controls fullscreen />} /> : null;
+}
+
+function PlayerVariables() {
+  const step = usePlayer((state) => state.trace[state.step]);
+  return step ? <VarPane step={step} /> : null;
+}
+
 export function AlgorithmPage({ slug, stageRef, onFullscreen, fullscreenError, mobileTab, onNavigate }: Props) {
   const algo = getAlgorithm(slug);
-  const p = usePlayer();
 
   // 绘制前恢复滚动位置：配合 Catalog 里的 rememberScroll，连点算法时页面不跳回顶部
   useLayoutEffect(() => { restoreScroll(); }, [slug]);
 
   if (!algo) return <NotFound slug={slug} />;
-  const cur = p.trace[p.step];
-  // 只判断有没有步骤数据，不再因 slug 不匹配而撤掉三栏：撤掉会让页面高度塌陷，
-  // 浏览器随即把滚动位置夹回顶部，表现为「每换一个算法就跳回页首」。
-  if (!cur) {
-    return <div className="page"><p>正在生成步骤序列…</p></div>;
-  }
 
   return (
     <div className="workbench" data-tab={mobileTab}>
@@ -53,14 +56,14 @@ export function AlgorithmPage({ slug, stageRef, onFullscreen, fullscreenError, m
         </aside>
 
         <main className="col col-center">
-          <Stage ref={stageRef} scene={cur.scene} onFullscreen={onFullscreen} fullscreenError={fullscreenError} fullscreenControls={<Controls fullscreen />} />
+          <PlayerStage stageRef={stageRef} onFullscreen={onFullscreen} fullscreenError={fullscreenError} />
           <Controls />
           <InputBar algo={algo} />
         </main>
 
         <aside className="col col-right">
           <CodePane algo={algo} />
-          <VarPane step={cur} />
+          <PlayerVariables />
         </aside>
       </div>
 

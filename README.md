@@ -51,7 +51,7 @@ netstat -ano | findstr ":5180"
 
 1. 把仓库推到 GitHub，分支名为 `main`。
 2. 在仓库 Settings → Pages → Build and deployment 中选择 **GitHub Actions**。
-3. `.github/workflows/deploy.yml` 会自动执行 `validate → build → 浏览器回归 → deploy`；浏览器检查失败会阻止部署并保留报告，无需任何密钥。
+3. `.github/workflows/deploy.yml` 会在提交到 `main` 及向 `main` 提 PR 时执行算法校验、可运行示例、构建、单文件导出与浏览器回归；PR 只做校验，`main` 校验通过后才部署。检查失败会保留报告，无需任何密钥。
 4. 若仓库名不是根域名，也不用改配置：`vite.config.ts` 使用相对 `base`，路由是 hash 形式，项目页路径可直接工作。
 
 本地验证静态托管效果：`npm run build` 后用任意静态服务器打开 `dist/index.html` 即可。
@@ -177,11 +177,13 @@ Bellman-Ford 的动画与代码均在一整轮无更新时提前结束松弛，�
 
 ```bash
 npx playwright install chromium
-npm run build
+npm run standalone
 npm run test:browser
 ```
 
 测试在独立端口 `41080` 启动生产预览，覆盖桌面与窄屏、图例和典型案例、Dijkstra 表与路径选择／回退、53 个演示的全屏首中末步骤、播放／暂停、单步、进度、倍速、窗口变化及退出恢复。失败截图、跟踪和报告写入 `test-results/`、`playwright-report/`，均不提交到 Git。
+
+另检查切换算法清空自测答案、代码行的 Enter／空格跳转，以及 `standalone.html` 在 `file://` 和断网环境下访问动画、对比与练习页面。网站按页面懒加载，单文件版单独合并全部模块并内联 CSS／JS，避免依赖额外资源。
 
 全屏布局与控件使用明确标记的模拟全屏用例，始终执行；另有桌面原生全屏用例，浏览器不授予全屏权限时会标明原因并跳过。CI 安装 Chromium 及系统依赖后运行同一套测试。配置方式参考 [Playwright Web Server](https://playwright.dev/docs/test-webserver) 和 [CI 文档](https://playwright.dev/docs/ci-intro)。
 
