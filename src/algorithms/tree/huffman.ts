@@ -20,6 +20,7 @@ export const huffmanTree: AlgorithmMeta = {
       { text: '  // 森林中每棵树都只有一个叶子结点', anchor: 'init' },
       { text: '  for (int i = 0; i < n; i++) HT[i] = {w[i], -1, -1, -1};' },
       { text: '  for (int i = 1; i < n; i++) {' },
+      { text: '    int p1, p2;' },
       { text: '    SelectTwo(HT, n + i - 1, p1, p2);  // 按权值、创建下标升序选两棵根树', anchor: 'pick' },
       { text: '    HT[n + i - 1] = {HT[p1].w + HT[p2].w, p1, p2, -1};', anchor: 'merge' },
       { text: '    HT[p1].parent = HT[p2].parent = n + i - 1;' },
@@ -29,7 +30,7 @@ export const huffmanTree: AlgorithmMeta = {
     python: [
       { text: 'def huffman(w):' },
       { text: '    # 森林中每棵树都只有一个叶子结点', anchor: 'init' },
-      { text: '    forest = [{"w": x, "l": None, "r": None} for x in w]' },
+      { text: '    forest = [{"id": i, "w": x, "l": None, "r": None} for i, x in enumerate(w)]' },
       { text: '    while len(forest) > 1:' },
       { text: '        forest.sort(key=lambda t: t["w"])', anchor: 'pick' },
       { text: '        a, b = forest.pop(0), forest.pop(0)' },
@@ -37,6 +38,53 @@ export const huffmanTree: AlgorithmMeta = {
       { text: '    return forest[0]  # 只剩一棵树', anchor: 'done' },
     ],
   },
+  runnable: (lang, input, code) => lang === 'python' ? `${code}
+
+def print_codes(node, bits=""):
+    if node["l"] is None:
+        print(chr(65 + node["id"]), node["w"], bits)
+        return node["w"] * len(bits)
+    return print_codes(node["l"], bits + "0") + print_codes(node["r"], bits + "1")
+
+root = huffman([${input.join(', ')}])
+wpl = print_codes(root)
+print("WPL", wpl)
+` : `#include <algorithm>
+#include <iostream>
+#include <string>
+#include <vector>
+struct Node { int w, l, r, parent; };
+Node HT[15];
+
+void SelectTwo(const Node nodes[], int count, int& first, int& second) {
+    std::vector<int> roots;
+    for (int i = 0; i < count; ++i)
+        if (nodes[i].parent == -1) roots.push_back(i);
+    std::stable_sort(roots.begin(), roots.end(), [&](int a, int b) { return nodes[a].w < nodes[b].w; });
+    first = roots[0];
+    second = roots[1];
+}
+
+${code}
+
+int print_codes(int id, const std::string& bits) {
+    const Node& node = HT[id];
+    if (node.l == -1) {
+        std::cout << char('A' + id) << ' ' << node.w << ' ' << bits << '\\n';
+        return node.w * static_cast<int>(bits.size());
+    }
+    int left = print_codes(node.l, bits + "0");
+    return left + print_codes(node.r, bits + "1");
+}
+
+int main() {
+    int weights[] = {${input.join(', ')}};
+    int n = sizeof(weights) / sizeof(weights[0]);
+    Huffman(weights, n);
+    int wpl = print_codes(2 * n - 2, "");
+    std::cout << "WPL " << wpl << '\\n';
+}
+`,
   doc: [
     {
       heading: '核心思想',
@@ -87,6 +135,7 @@ export const huffmanTree: AlgorithmMeta = {
       order.push(id);
     });
     let roots = order.slice();
+    let encoding: NonNullable<TraceStep['scene']['huffman']> | undefined;
 
     const push = (anchor: string, phase: string, caption: string) => {
       const nodes = [node('forest', '森林', 'default')];
@@ -96,16 +145,17 @@ export const huffmanTree: AlgorithmMeta = {
         const p = parent[id];
         if (p) {
           const key = `${p}>${id}`;
-          edges.push(edge(p, id, undefined, activeEdges.has(key) ? 'active' : 'tree'));
+          edges.push(edge(p, id, encoding ? String(kids[p].indexOf(id)) : undefined, activeEdges.has(key) ? 'active' : 'tree'));
         }
       }
-      for (const r of roots) edges.push(edge('forest', r, undefined, 'default'));
+      if (!encoding) for (const r of roots) edges.push(edge('forest', r, undefined, 'default'));
+      if (encoding) edges.sort((a, b) => Number(a.label) - Number(b.label));
       steps.push(
         makeStep(
           k++,
           anchor,
           phase,
-          treeScene(nodes, edges, `森林中还有 ${roots.length} 棵树`),
+          { ...treeScene(encoding ? nodes.slice(1) : nodes, edges, encoding ? `WPL = ${encoding.wpl}` : `森林中还有 ${roots.length} 棵树`), huffman: encoding },
           {
             森林规模: roots.length,
             本轮选中: selText,
@@ -162,14 +212,17 @@ export const huffmanTree: AlgorithmMeta = {
 
     const rootId = roots[0];
     let wpl = 0;
-    const walk = (id: string, depth: number): void => {
+    const rows: NonNullable<TraceStep['scene']['huffman']>['rows'] = [];
+    const walk = (id: string, bits: string, path: string[]): void => {
       if (!kids[id]) {
-        wpl += weight[id] * depth;
+        wpl += weight[id] * bits.length;
+        rows.push({ id, symbol: name[id], weight: weight[id], bits, path });
         return;
       }
-      for (const c of kids[id]) walk(c, depth + 1);
+      kids[id].forEach((child, bit) => walk(child, bits + bit, [...path, child]));
     };
-    walk(rootId, 0);
+    walk(rootId, '', [rootId]);
+    encoding = { wpl, rows: rows.sort((a, b) => a.symbol.localeCompare(b.symbol)) };
     states[rootId] = 'found';
     selText = '—';
     lastSum = '—';

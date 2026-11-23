@@ -53,8 +53,8 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
   const [hintRight, setHintRight] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [selectedVertex, setSelectedVertex] = useState<string | null>(null);
-  useLayoutEffect(() => { setSelectedVertex(null); }, [scene.shortestPath?.source]);
-  const selectedPath = scene.shortestPath?.rows.find(({ id }) => id === selectedVertex);
+  useLayoutEffect(() => { setSelectedVertex(null); }, [scene.shortestPath?.source, Boolean(scene.huffman)]);
+  const selectedPath = (scene.shortestPath?.rows ?? scene.huffman?.rows)?.find(({ id }) => id === selectedVertex);
   const selectedEdges = new Set(selectedPath?.path.slice(1).map((id, index) => `${selectedPath.path[index]}>${id}`));
   const pathScene: Scene = selectedPath ? { ...scene, edges: scene.edges?.map((edge) =>
     selectedEdges.has(`${edge.from}>${edge.to}`) ? { ...edge, state: 'active' } : edge) } : scene;
@@ -126,7 +126,21 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
       <div className="stage-viewport" ref={viewportRef}>
         <div className="stage-content" ref={contentRef}>
         <div className="stage-canvas" ref={canvasRef} onScroll={syncHint}>
-          {scene.distanceMatrix || scene.primTable || scene.disjointSet ? <div className="graph-details-stage">
+          {scene.huffman ? <div className="graph-details-stage">
+            <div className="graph-details-graph"><TreeGraphSvg scene={pathScene} compact onSelectVertex={setSelectedVertex}
+              vertexLabels={new Map(scene.huffman.rows.map(({ id, symbol }) => [id, symbol]))} /></div>
+            <div className="graph-details">
+              <table aria-label="哈夫曼编码表">
+                <caption>哈夫曼编码 · WPL = {scene.huffman.wpl}</caption>
+                <thead><tr>{['字符', '权值', '编码', '深度', 'WPL 贡献'].map((label) => <th key={label} scope="col">{label}</th>)}</tr></thead>
+                <tbody>{scene.huffman.rows.map(({ id, symbol, weight, bits }) => <tr key={id} className={id === selectedVertex ? 'detail-updated' : undefined}>
+                  <th scope="row"><button className="vertex-select" aria-label={`高亮字符 ${symbol} 的编码路径`} aria-pressed={id === selectedVertex} onClick={() => setSelectedVertex(id)}>{symbol}</button></th>
+                  <td>{weight}</td><td><code>{bits}</code></td><td>{bits.length}</td><td>{weight * bits.length}</td>
+                </tr>)}</tbody>
+              </table>
+              <p className="graph-detail-note">左边为 0，右边为 1。选择叶子或表中字符可高亮编码路径。</p>
+            </div>
+          </div> : scene.distanceMatrix || scene.primTable || scene.disjointSet ? <div className="graph-details-stage">
             <div className="graph-details-graph"><TreeGraphSvg scene={scene} compact /></div>
             <GraphDetails scene={scene} />
           </div> : scene.shortestPath ? <div className="shortest-path-stage">
@@ -186,7 +200,9 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
         {hintRight && <span className="scroll-hint" aria-hidden="true" />}
       </div>
       <div className="legend">
-        {scene.distanceMatrix ? <>
+        {scene.huffman ? <>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />所选编码路径</span>
+        </> : scene.distanceMatrix ? <>
           <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />中转顶点／D[i][k]</span>
           <span className="legend-item"><i style={{ background: COLOR.min.fill, borderColor: COLOR.min.stroke }} />D[k][j]</span>
           <span className="legend-item"><i style={{ borderColor: EDGE_COLOR.active }} />目标 D[i][j]</span>
@@ -293,7 +309,7 @@ function SubtreeOutlines({ edges, points, focus }: {
 }
 
 /** 树 / 图：圆形结点 + 带状态的边，坐标由 layout 统一给出。 */
-function TreeGraphSvg({ scene, compact = false, onSelectVertex }: { scene: Scene; compact?: boolean; onSelectVertex?: (id: string) => void }) {
+function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLabels }: { scene: Scene; compact?: boolean; onSelectVertex?: (id: string) => void; vertexLabels?: Map<string, string> }) {
   const markerId = useId();
   const markerUrl = (suffix: string) => `url(#${markerId}-${suffix})`;
   const edges: SceneEdge[] = scene.edges ?? [];
@@ -390,13 +406,14 @@ function TreeGraphSvg({ scene, compact = false, onSelectVertex }: { scene: Scene
       {scene.nodes.map((n) => {
         const p = lay.points[n.id];
         if (!p) return null;
+        const select = !vertexLabels || vertexLabels.has(n.id) ? onSelectVertex : undefined;
         const c = scene.graphTrace && n.state === 'visited' ? COLOR.found : COLOR[n.state ?? 'default'];
         return (
-          <g key={n.id} role={onSelectVertex ? 'button' : undefined} tabIndex={onSelectVertex ? 0 : undefined}
-            aria-label={onSelectVertex ? `查看 ${n.value} 的路径` : undefined}
-            onClick={onSelectVertex ? () => onSelectVertex(n.id) : undefined}
-            onKeyDown={onSelectVertex ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectVertex(n.id); } } : undefined}
-            style={{ cursor: onSelectVertex ? 'pointer' : undefined, transform: `translate(${p.x}px, ${p.y}px)`, transition: 'transform 340ms cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
+          <g key={n.id} role={select ? 'button' : undefined} tabIndex={select ? 0 : undefined}
+            aria-label={select ? `查看 ${vertexLabels?.get(n.id) ?? n.value} 的路径` : undefined}
+            onClick={select ? () => select(n.id) : undefined}
+            onKeyDown={select ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(n.id); } } : undefined}
+            style={{ cursor: select ? 'pointer' : undefined, transform: `translate(${p.x}px, ${p.y}px)`, transition: 'transform 340ms cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
             <circle r={NODE_R} strokeWidth="1.4" style={{ fill: c.fill, stroke: c.stroke, transition: 'fill 200ms ease, stroke 200ms ease' }} />
             <text
               textAnchor="middle"

@@ -79,6 +79,7 @@ export interface Scene {
   cols?: number; // array 折行成二维网格（矩阵、哈希表）时每行格子数
   aux?: SceneAux;
   output?: { label: string; values: string[] }; // 累计输出，顺序与当前步骤一致
+  huffman?: { wpl: number; rows: { id: string; symbol: string; weight: number; bits: string; path: string[] }[] };
   shortestPath?: {
     source: string;
     complete: boolean;
@@ -160,6 +161,7 @@ export interface AlgorithmMeta {
   input?: InputSpec;
   graphCases?: { id: number; label: string; description: string }[];
   code: Record<string, CodeLine[]>; // 每种语言都必须覆盖全部行锚点
+  runnable?: (lang: string, input: number[], code: string) => string;
   doc: DocSection[];
   quiz: QuizItem[];
   generate: (input: number[]) => TraceStep[];

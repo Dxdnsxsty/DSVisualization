@@ -71,7 +71,9 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
     const prefix = p.lang === 'python' ? '# ' : '// ';
     const [main, pattern] = algo.input?.format === 'string-match' ? decodeMatchInput(p.input) : [];
     const example = main !== undefined ? `主串 ${main}，模式串 ${pattern}` : p.input.join(', ');
-    const text = `${prefix}${algo.title} · DS·Visual 教学示例\n${prefix}输入示例：${example}\n\n${lines.map((l) => l.text).join('\n')}\n`;
+    const code = lines.map((l) => l.text).join('\n');
+    const program = algo.runnable?.(p.lang, p.input, code) ?? code;
+    const text = `${prefix}${algo.title} · DS·Visual 教学示例\n${prefix}输入示例：${example}\n\n${program}\n`;
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url; a.download = `${algo.slug.replace('/', '-')}.${ext}`; a.click();

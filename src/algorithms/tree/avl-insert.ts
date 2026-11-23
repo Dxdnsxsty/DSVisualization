@@ -6,6 +6,99 @@ export const avlInsert: AlgorithmMeta = {
   slug: 'tree/avl-insert', title: '平衡二叉树 · AVL 插入', chapter: '第 7 章 树和二叉树', category: 'ch7', summary: '连续插入关键字；一旦失衡，按 LL / RR / LR / RL 旋转恢复平衡。', complexity: { time: 'O(log n)', space: 'O(log n)', extra: '递归调用栈' }, difficulty: '进阶',
   inputHint: '输入 3–7 个互不相同的整数。默认序列依次触发 LL、LR、RL、RR；也可用文档中的三数案例单独练习。', defaultInput: [60, 20, 10, 40, 50, 30, 70], input: { min: -999, max: 999, minLen: 3, maxLen: 7, check: (v) => new Set(v).size === v.length ? null : '关键字必须互不相同', random: () => { const n = 3 + Math.floor(Math.random() * 5); const out = new Set<number>(); while (out.size < n) out.add(10 + Math.floor(Math.random() * 90)); return [...out]; } },
   code: { cpp: [{ text: 'Node* InsertAVL(Node* t, int x) {', anchor: 'insert' }, { text: '  if (!t) return new Node(x);', anchor: 'insert' }, { text: '  if (x < t->key) t->left = InsertAVL(t->left, x);' }, { text: '  else t->right = InsertAVL(t->right, x);' }, { text: '  UpdateHeight(t);', anchor: 'check' }, { text: '  int bf = Balance(t);' }, { text: '  if (bf > 1 && Balance(t->left) < 0) t->left = RotateLeft(t->left);', anchor: 'rotateLR' }, { text: '  if (bf < -1 && Balance(t->right) > 0) t->right = RotateRight(t->right);', anchor: 'rotateRL' }, { text: '  if (bf > 1) return RotateRight(t);', anchor: 'rotate' }, { text: '  if (bf < -1) return RotateLeft(t);', anchor: 'rotate' }, { text: '  return t;', anchor: 'done' }, { text: '}' }], python: [{ text: 'def insert_avl(t, x):', anchor: 'insert' }, { text: '    if not t: return Node(x)', anchor: 'insert' }, { text: '    if x < t.key: t.left = insert_avl(t.left, x)' }, { text: '    else: t.right = insert_avl(t.right, x)' }, { text: '    update_height(t)', anchor: 'check' }, { text: '    bf = balance(t)' }, { text: '    if bf > 1 and balance(t.left) < 0: t.left = rotate_left(t.left)', anchor: 'rotateLR' }, { text: '    if bf < -1 and balance(t.right) > 0: t.right = rotate_right(t.right)', anchor: 'rotateRL' }, { text: '    if bf > 1: return rotate_right(t)', anchor: 'rotate' }, { text: '    if bf < -1: return rotate_left(t)', anchor: 'rotate' }, { text: '    return t', anchor: 'done' }] },
+  runnable: (lang, input, code) => lang === 'python' ? `class Node:
+    def __init__(self, key):
+        self.key, self.height = key, 1
+        self.left = self.right = None
+
+def height(t):
+    return t.height if t else 0
+
+def update_height(t):
+    t.height = 1 + max(height(t.left), height(t.right))
+
+def balance(t):
+    return height(t.left) - height(t.right)
+
+def rotate_left(t):
+    child = t.right
+    t.right, child.left = child.left, t
+    update_height(t)
+    update_height(child)
+    return child
+
+def rotate_right(t):
+    child = t.left
+    t.left, child.right = child.right, t
+    update_height(t)
+    update_height(child)
+    return child
+
+${code}
+
+def preorder(t):
+    if t is None:
+        return ["-"]
+    return [str(t.key), *preorder(t.left), *preorder(t.right)]
+
+root = None
+for key in [${input.join(', ')}]:
+    root = insert_avl(root, key)
+print(*preorder(root))
+` : `#include <algorithm>
+#include <iostream>
+struct Node {
+    int key, height = 1;
+    Node *left = nullptr, *right = nullptr;
+    explicit Node(int value) : key(value) {}
+};
+
+int Height(Node* t) { return t ? t->height : 0; }
+int Balance(Node* t) { return Height(t->left) - Height(t->right); }
+void UpdateHeight(Node* t) {
+    t->height = 1 + std::max(Height(t->left), Height(t->right));
+}
+Node* RotateLeft(Node* t) {
+    Node* child = t->right;
+    t->right = child->left;
+    child->left = t;
+    UpdateHeight(t);
+    UpdateHeight(child);
+    return child;
+}
+Node* RotateRight(Node* t) {
+    Node* child = t->left;
+    t->left = child->right;
+    child->right = t;
+    UpdateHeight(t);
+    UpdateHeight(child);
+    return child;
+}
+
+${code}
+
+void print_preorder(const Node* t) {
+    if (!t) { std::cout << "- "; return; }
+    std::cout << t->key << ' ';
+    print_preorder(t->left);
+    print_preorder(t->right);
+}
+void clear(Node* t) {
+    if (!t) return;
+    clear(t->left);
+    clear(t->right);
+    delete t;
+}
+
+int main() {
+    Node* root = nullptr;
+    int keys[] = {${input.join(', ')}};
+    for (int key : keys) root = InsertAVL(root, key);
+    print_preorder(root);
+    std::cout << '\\n';
+    clear(root);
+}
+`,
   doc: [
     { heading: '先定位最低失衡祖先', body: '新关键字先按二叉排序树规则落到叶子。沿插入路径向上更新高度，bf = 左子树高 − 右子树高；第一次出现 |bf| = 2 的结点就是最低失衡祖先，只需在这里调整。结点上方的 h 标记为当前高度。', points: ['bf = +2：左侧过高；bf = -2：右侧过高', '外侧插入使用一次单旋，内侧插入使用两次旋转', '旋转不改变中序序列，因此仍保持 BST 性质'] },
     { heading: '四种失衡：输入、形状与动作', body: '可把下面每一行的三个数直接填入输入框，观察最小的可复现实例。默认的 60,20,10,40,50,30,70 会按顺序覆盖四种情况。', points: ['LL：60, 20, 10；插入在左孩子的左侧，对失衡根右旋。', 'RR：10, 20, 30；插入在右孩子的右侧，对失衡根左旋。', 'LR：30, 10, 20；插入在左孩子的右侧，先左旋左孩子，再右旋失衡根。', 'RL：10, 30, 20；插入在右孩子的左侧，先右旋右孩子，再左旋失衡根。'] },

@@ -448,7 +448,7 @@ select:hover { border-color: #d8dbe3; }
 .parent-grid > span { padding: 6px; text-align: center; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-code); }
 .shortest-path-graph { width: 440px; max-width: 100%; min-width: 0; }
 .shortest-path-graph svg { min-width: 0; max-width: 100%; height: auto; }
-.shortest-path-graph g[role='button']:focus-visible circle { stroke: var(--accent); stroke-width: 3px; }
+.stage-canvas g[role='button']:focus-visible circle { stroke: var(--accent); stroke-width: 3px; }
 .shortest-path-table { width: 340px; max-width: 100%; font-size: 13px; }
 .shortest-path-table table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .shortest-path-table caption { padding: 0 0 10px; color: var(--muted); text-align: left; }

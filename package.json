@@ -9,6 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "validate": "node scripts/validate-traces.mjs",
+    "test:examples": "node scripts/runnable-examples.mjs",
     "test:browser": "playwright test",
     "standalone": "npm run build && node scripts/build-standalone.mjs"
   },

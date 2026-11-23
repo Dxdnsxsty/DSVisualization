@@ -38,8 +38,8 @@ export const floydShortest: AlgorithmMeta = {
   input: { min: 4, max: 5, minLen: 1, maxLen: 1 },
   code: {
     cpp: [
-      { text: 'void Floyd(MatGraph G) {' },
-      { text: '  int D[MAXV][MAXV];  // D 初值即邻接矩阵', anchor: 'init' },
+      { text: 'void Floyd(const MatGraph& G, int D[MAXV][MAXV]) {' },
+      { text: '  // D 初值即邻接矩阵', anchor: 'init' },
       { text: '  for (int i = 0; i < G.n; i++)' },
       { text: '    for (int j = 0; j < G.n; j++)' },
       { text: '      D[i][j] = G.edges[i][j];' },
@@ -64,6 +64,40 @@ export const floydShortest: AlgorithmMeta = {
       { text: '                    D[i][j] = D[i][k] + D[k][j]', anchor: 'update' },
       { text: '    return D', anchor: 'done' },
     ],
+  },
+  runnable: (lang, [n], code) => {
+    const matrix = Array.from({ length: n }, (_, i) =>
+      Array.from({ length: n }, (_, j) => i === j ? 0 : DEDGES.find(([a, b]) => a === i && b === j)?.[2] ?? 'INF'));
+    if (lang === 'python') return `INF = float("inf")
+from types import SimpleNamespace
+
+${code}
+
+arcs = [${matrix.map((row) => `[${row.join(', ')}]`).join(', ')}]
+for row in floyd(SimpleNamespace(n=len(arcs), arcs=arcs)):
+    print(*("INF" if value == INF else value for value in row))
+`;
+    return `#include <iostream>
+constexpr int MAXV = 5;
+constexpr int INF = 1000000;
+struct MatGraph { int n; int edges[MAXV][MAXV]; };
+
+${code}
+
+int main() {
+    MatGraph g{${n}, {${matrix.map((row) => `{${row.join(', ')}}`).join(', ')}}};
+    int distances[MAXV][MAXV];
+    Floyd(g, distances);
+    for (int i = 0; i < g.n; ++i) {
+        for (int j = 0; j < g.n; ++j) {
+            if (j) std::cout << ' ';
+            if (distances[i][j] == INF) std::cout << "INF";
+            else std::cout << distances[i][j];
+        }
+        std::cout << '\\n';
+    }
+}
+`;
   },
   doc: [
     {
