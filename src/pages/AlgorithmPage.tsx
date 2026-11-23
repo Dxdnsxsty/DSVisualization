@@ -13,11 +13,12 @@ interface Props {
   slug: string;
   stageRef: RefObject<HTMLDivElement>;
   onFullscreen: () => void;
+  fullscreenError: string;
   mobileTab: string;
   onNavigate?: () => void;
 }
 
-export function AlgorithmPage({ slug, stageRef, onFullscreen, mobileTab, onNavigate }: Props) {
+export function AlgorithmPage({ slug, stageRef, onFullscreen, fullscreenError, mobileTab, onNavigate }: Props) {
   const algo = getAlgorithm(slug);
   const p = usePlayer();
 
@@ -52,7 +53,7 @@ export function AlgorithmPage({ slug, stageRef, onFullscreen, mobileTab, onNavig
         </aside>
 
         <main className="col col-center">
-          <Stage ref={stageRef} scene={cur.scene} onFullscreen={onFullscreen} fullscreenControls={<Controls fullscreen />} />
+          <Stage ref={stageRef} scene={cur.scene} onFullscreen={onFullscreen} fullscreenError={fullscreenError} fullscreenControls={<Controls fullscreen />} />
           <Controls />
           <InputBar algo={algo} />
         </main>

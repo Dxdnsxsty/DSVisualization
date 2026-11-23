@@ -1,6 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 import { algorithms } from '../../src/algorithms/registry';
 
+test('全屏请求被拒绝时显示提示', async ({ page }) => {
+  const errors: Error[] = [];
+  page.on('pageerror', (error) => errors.push(error));
+  await page.addInitScript(() => {
+    Element.prototype.requestFullscreen = () => Promise.reject(new DOMException('Denied', 'NotAllowedError'));
+  });
+  await page.goto('/#/algo/graph/dijkstra');
+  await page.getByRole('button', { name: '进入全屏' }).click();
+  await expect(page.locator('.stage').getByRole('alert')).toContainText('无法进入全屏');
+  await expect(page.getByRole('button', { name: '进入全屏' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 // 原生全屏会受浏览器／桌面权限限制。独立模拟 API 和同等 CSS，始终执行布局与控件回归；
 // 另有原生全屏用例，支持时验证真实进入与退出，不把模拟检查冒充原生检查。
 async function mockFullscreen(page: Page) {

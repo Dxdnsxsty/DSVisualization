@@ -23,6 +23,7 @@ export default function App() {
   const p = usePlayer();
   const stageRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<MobileTab>('stage');
+  const [fullscreenError, setFullscreenError] = useState('');
   const slug = route.name === 'algo' ? route.slug : '';
   const replay = route.name === 'algo' ? route.replay : undefined;
 
@@ -37,13 +38,21 @@ export default function App() {
     }
   }, [route.name]);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = async () => {
     const el = stageRef.current;
     if (!el) return;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void el.requestFullscreen?.();
+    setFullscreenError('');
+    const exiting = document.fullscreenElement === el;
+    try {
+      if (exiting) await document.exitFullscreen();
+      else if (el.requestFullscreen) await el.requestFullscreen();
+      else setFullscreenError('当前浏览器不支持全屏。');
+    } catch {
+      setFullscreenError(exiting ? '无法退出全屏，请尝试按 Esc。' : '无法进入全屏，请检查浏览器的全屏权限。');
+    }
   };
 
+  useEffect(() => { setFullscreenError(''); }, [slug]);
   useLayoutEffect(() => { syncPlayerRoute(slug, replay); }, [slug, replay]);
 
   useEffect(() => schedulePlayerAdvance(slug), [slug, p.slug, p.playing, p.step, p.speed, p.trace]);
@@ -111,6 +120,7 @@ export default function App() {
             slug={slug}
             stageRef={stageRef}
             onFullscreen={toggleFullscreen}
+            fullscreenError={fullscreenError}
             mobileTab={tab}
             onNavigate={() => setTab('stage')}
           />

@@ -41,10 +41,11 @@ interface Props {
   scene: Scene;
   fullscreenControls?: ReactNode;
   onFullscreen?: () => void;
+  fullscreenError?: string;
 }
 
 /** SVG 舞台：图元 id 稳定 + CSS transform 过渡 = 简化版 FLIP，交换/插入自带位移动画。 */
-export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, fullscreenControls, onFullscreen }, ref) {
+export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, fullscreenControls, onFullscreen, fullscreenError }, ref) {
   const isTreeGraph = scene.kind === 'tree' || scene.kind === 'graph';
   const canvasRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -121,6 +122,7 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
           </button>}
         </div>
       </div>
+      {fullscreenError && <p className="error" role="alert">{fullscreenError}</p>}
       <div className="stage-viewport" ref={viewportRef}>
         <div className="stage-content" ref={contentRef}>
         <div className="stage-canvas" ref={canvasRef} onScroll={syncHint}>

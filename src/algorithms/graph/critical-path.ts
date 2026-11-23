@@ -179,9 +179,10 @@ export const criticalPath: AlgorithmMeta = {
       for (const [a] of ins) eStates[`${a}>${v}`] = 'default';
     }
 
-    push('rev', '逆拓扑初始化', `汇点 ${VEX[n - 1]} 的 vl 等于 ve = ${ve[n - 1]}，从它开始逆推其余事件。`);
     vl[n - 1] = ve[n - 1];
     vlDone[n - 1] = true;
+    cur = n - 1;
+    push('rev', '逆拓扑初始化', `汇点 ${VEX[n - 1]} 的 vl 等于 ve = ${ve[n - 1]}，从它开始逆推其余事件。`);
 
     for (let idx = n - 2; idx >= 0; idx--) {
       const v = TOPO[idx];
@@ -235,11 +236,18 @@ export const criticalPath: AlgorithmMeta = {
 
     cur = -1;
     actText = '—';
-    for (let i = 0; i < n; i++) crit[i] = true;
+    const pathCounts = Array<number>(n).fill(0);
+    pathCounts[0] = 1;
+    for (const a of TOPO.slice(0, n)) {
+      for (const [from, to] of aedges) {
+        if (from === a && eStates[`${from}>${to}`] === 'tree') pathCounts[to] += pathCounts[from];
+      }
+    }
+    const pathCount = pathCounts[n - 1];
     push(
       'done',
       '完成',
-      `关键路径由 ${critCount} 条关键活动组成，示例网中最短工期为 ${ve[n - 1]}，关键路径不唯一。`,
+      `共有 ${pathCount} 条关键路径、${critCount} 条关键活动，最短工期为 ${ve[n - 1]}。`,
     );
     return steps;
   },
