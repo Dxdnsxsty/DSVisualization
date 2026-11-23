@@ -35,7 +35,7 @@ async function fits(page: Page) {
   await expect.poll(() => page.evaluate(() => {
     const viewport = document.querySelector('.stage-viewport')!.getBoundingClientRect();
     const errors: string[] = [];
-    for (const item of document.querySelectorAll('.stage-content, .stage-canvas svg, .shortest-path-table')) {
+    for (const item of document.querySelectorAll('.stage-content, .stage-canvas svg, .shortest-path-table, .graph-details')) {
       const box = item.getBoundingClientRect();
       if (box.left < viewport.left - 1 || box.right > viewport.right + 1 || box.top < viewport.top - 1 || box.bottom > viewport.bottom + 1) errors.push(item.className.toString());
     }

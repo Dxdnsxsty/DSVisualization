@@ -83,6 +83,13 @@ export interface Scene {
     complete: boolean;
     rows: { id: string; vertex: string; distance: number | null; predecessor: string | null; settled: boolean; changed: boolean; path: string[] }[];
   };
+  distanceMatrix?: { labels: string[]; values: string[][]; k: number | null; i: number | null; j: number | null; updated: boolean };
+  primTable?: { vertex: string; lowcost: number | null; candidate: string | null; selected: boolean; changed: boolean }[];
+  disjointSet?: {
+    groups: { root: string; members: string[] }[];
+    parents: { vertex: string; parent: string }[];
+    current?: { from: string; to: string; roots: [string, string]; action: 'check' | 'union' | 'reject' };
+  };
 }
 
 /** 累计关键字比较、交换与数据写入；writes 包含原数组及辅助数组/桶，交换计两次写入。 */

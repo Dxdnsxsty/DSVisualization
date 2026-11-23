@@ -120,6 +120,13 @@ export const primMst: AlgorithmMeta = {
       return arr;
     };
     const setOf = () => VEX.slice(0, n).filter((_, i) => selected[i]).join('') || '空';
+    const candidate = (v: number, cost: number) => {
+      if (selected[v] || !Number.isFinite(cost)) return null;
+      const match = wedges.find(([a, b, w]) => w === cost && ((selected[a] && b === v) || (selected[b] && a === v)));
+      return match ? VEX[match[0] === v ? match[1] : match[0]] : null;
+    };
+    let beforeCosts: number[] = [];
+    let beforeCandidates: (string | null)[] = [];
 
     const push = (anchor: string, phase: string, caption: string, roundCost: number | string) => {
       const nodes = VEX.slice(0, n).map((v, i) =>
@@ -134,7 +141,14 @@ export const primMst: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          graphScene(nodes, edges, `已选集合 U = {${setOf()}}，累计权值 ${total}`),
+          {
+            ...graphScene(nodes, edges, `已选集合 U = {${setOf()}}，累计权值 ${total}`),
+            primTable: VEX.slice(0, n).map((vertex, index) => ({ vertex,
+              lowcost: selected[index] ? 0 : Number.isFinite(cur[index]) ? cur[index] : null,
+              candidate: candidate(index, cur[index]), selected: selected[index],
+              changed: anchor === 'update' && !selected[index] && (cur[index] !== beforeCosts[index] || candidate(index, cur[index]) !== beforeCandidates[index]),
+            })),
+          },
           {
             lowcost: VEX.slice(0, n)
               .map((v, i) => `${v}:${selected[i] ? 0 : cur[i] === Infinity ? '∞' : cur[i]}`)
@@ -154,6 +168,8 @@ export const primMst: AlgorithmMeta = {
 
     for (let round = 1; round < n; round++) {
       const cur = lc();
+      beforeCosts = cur;
+      beforeCandidates = cur.map((cost, index) => candidate(index, cost));
       const crossing = wedges.filter(([a, b]) => selected[a] !== selected[b]);
       for (const [a, b] of crossing) eStates[eKey(a, b)] = 'candidate';
       const desc = crossing.map(([a, b, w]) => `(${VEX[a]},${VEX[b]})${w}`).join('、');

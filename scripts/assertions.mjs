@@ -244,21 +244,18 @@ function allPairs(scene) {
   return { dist: d, vs };
 }
 
-/** Floyd 的最终结果放在 aux 的一行里，独立算全源最短路后比对这一行 */
+/** Floyd 独立重算全源最短路，对照完整矩阵的全部单元格。 */
 function checkFloyd(algo, trace, err) {
   const last = trace[trace.length - 1];
   const s = last.scene;
   const { dist, vs } = allPairs(s);
-  const row = (s.aux?.nodes ?? []).map((n) => Number(n.value));
-  if (!row.length) { err('末尾没有 Floyd 结果行（aux 为空）'); return; }
-  const m = String(s.aux?.label ?? '').match(/D\s*第\s*([A-Za-z]\w*)\s*行/);
-  const src = m ? m[1] : vs[0];
-  row.forEach((got, idx) => {
-    const v = vs[idx];
-    if (v === undefined) return;
-    const want = dist.get(`${src}|${v}`);
-    if (Number.isFinite(want) && got !== want) err(`D[${src}][${v}] 报 ${got}，独立算出 ${want}`);
-  });
+  const matrix = s.distanceMatrix;
+  if (!matrix || matrix.values.length !== vs.length || matrix.labels.join() !== vs.join()) { err('缺少完整 Floyd 结果矩阵'); return; }
+  for (let i = 0; i < vs.length; i++) for (let j = 0; j < vs.length; j++) {
+    const got = matrix.values[i]?.[j] === '∞' ? Infinity : Number(matrix.values[i]?.[j]);
+    const want = dist.get(`${vs[i]}|${vs[j]}`);
+    if (got !== want) err(`D[${vs[i]}][${vs[j]}] 报 ${got}，独立算出 ${want}`);
+  }
 }
 
 /** Bellman-Ford：按报告的源点独立跑 n-1 轮松弛，比对 dist */

@@ -1,5 +1,5 @@
 import type { AlgorithmMeta, EdgeState, TraceStep } from '../../engine/types';
-import { auxStruct, edge, graphScene, makeStep, node, nodeAt } from '../../engine/scene';
+import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
 
 /** 固定 5 顶点有向带权图：A→B3、A→C8、A→E9、B→C2、B→D5、C→D4、C→E6、D→A7、D→E1、E→B2 */
 const VEX = ['A', 'B', 'C', 'D', 'E'];
@@ -120,14 +120,6 @@ export const floydShortest: AlgorithmMeta = {
         else if ((a === ci && b === ck) || (a === ck && b === cj)) st = 'active';
         return edge(ids[a], ids[b], String(w), st, true);
       });
-      const row = ci >= 0 ? ci : 0;
-      const auxNodes = Array.from({ length: n }, (_, j) =>
-        node(
-          `d${j}`,
-          show(d[row][j]),
-          j === cj ? (improved ? 'min' : 'visited') : j === ck ? 'active' : 'default',
-        ),
-      );
       steps.push(
         makeStep(
           k++,
@@ -135,7 +127,8 @@ export const floydShortest: AlgorithmMeta = {
           phase,
           {
             ...graphScene(nodes, edges, `中转顶点 ${ck >= 0 ? VEX[ck] : '—'}　已更新 ${updates} 处`),
-            aux: auxStruct(`D 第 ${VEX[row]} 行`, auxNodes),
+            distanceMatrix: { labels: VEX.slice(0, n), values: d.map((row) => row.map(show)),
+              k: ck < 0 ? null : ck, i: ci < 0 ? null : ci, j: cj < 0 ? null : cj, updated: improved },
           },
           {
             当前k: ck >= 0 ? VEX[ck] : '—',

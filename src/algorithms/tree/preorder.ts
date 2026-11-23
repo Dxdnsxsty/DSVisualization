@@ -67,6 +67,7 @@ export const preorderTree: AlgorithmMeta = {
     let k = 0;
     const states: Record<string, NodeState> = {};
     const edgeStates: Record<string, 'tree' | 'active'> = {};
+    const seq: number[] = [];
 
     const push = (anchor: string, phase: string, caption: string, stack: number[]) => {
       const current = stack.at(-1);
@@ -82,7 +83,14 @@ export const preorderTree: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          { ...treeScene(nodes, edges, `层序建树：${vals.join(' ')}`), subtrees: current === undefined ? undefined : { root: ids[current], active } },
+          {
+            ...treeScene(nodes, edges, `先序序列：${seq.join(' ') || '空'}`),
+            subtrees: current === undefined ? undefined : { root: ids[current], active },
+            aux: { label: '先序遍历调用栈', layout: 'call-stack', capacity: Math.floor(Math.log2(n)) + 1,
+              nodes: stack.map((index, at) => node(ids[index], callStack[at], at === stack.length - 1 ? 'active' : 'default')),
+              pointers: [{ label: 'top', index: stack.length ? stack.length - 1 : null }] },
+            output: { label: '先序访问序列', values: seq.map(String) },
+          },
           { 当前结点: callStack.at(-1) ?? '—', 递归深度: stack.length, 已访问: Object.values(states).filter((s) => s === 'sorted').length },
           caption,
           callStack.length ? callStack : undefined,
@@ -98,9 +106,9 @@ export const preorderTree: AlgorithmMeta = {
         return;
       }
       stack.push(i);
-      states[ids[i]] = 'active';
-      push('visit', '访问根结点', `进入结点 ${vals[i]}，先访问根，把它记入遍历序列。`, stack);
       states[ids[i]] = 'sorted';
+      seq.push(vals[i]);
+      push('visit', '访问根结点', `进入结点 ${vals[i]}，先访问根，把它记入遍历序列。`, stack);
 
       if (2 * i + 1 < n) {
         edgeStates[`${ids[i]}>${ids[2 * i + 1]}`] = 'active';

@@ -19,6 +19,8 @@ import { checkKmpNext } from './kmp-next.mjs';
 import { checkHashTables } from './hash-tables.mjs';
 import { checkTopoStack } from './topo-stack.mjs';
 import { checkGraphCases } from './graph-cases.mjs';
+import { checkTeachingDetails } from './teaching-details.mjs';
+import { checkBellmanFordExit } from './bellman-ford.mjs';
 
 const result = await build({
   entryPoints: ['src/algorithms/registry.ts'],
@@ -61,6 +63,8 @@ try {
   errors.push(...checkHashTables(mod.algorithms));
   errors.push(...checkTopoStack(mod.algorithms));
   errors.push(...checkGraphCases(mod.algorithms));
+  errors.push(...checkTeachingDetails(mod.algorithms));
+  errors.push(...checkBellmanFordExit(mod.algorithms));
 
   if (errors.length > 0) {
     console.error('\n校验未通过：');

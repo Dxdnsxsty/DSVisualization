@@ -1,7 +1,7 @@
 import type { AlgorithmMeta, EdgeState, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
 
-/** 固定 5 顶点有向带权图（含一条负权边 B→E = -4，但不存在负权回路）：A→B6、A→C7、B→C8、B→D5、B→E-4、C→D-3、D→E9、E→C7 */
+/** 固定 5 顶点有向带权图（含负权边，但不存在负权回路）：A→B6、A→C7、B→C8、B→D5、B→E-4、C→D-3、D→E9、E→C7 */
 const VEX = ['A', 'B', 'C', 'D', 'E'];
 const POS: { x: number; y: number }[] = [
   { x: 0.07, y: 0.5 },
@@ -28,10 +28,10 @@ export const bellmanFord: AlgorithmMeta = {
   title: '图 · Bellman-Ford 最短路径',
   chapter: '第 8 章 图',
   category: 'ch8',
-  summary: '每轮把全部边松弛一遍，n-1 轮必收敛。',
+  summary: '每轮松弛全部边，无更新时提前结束，再检查源点可达的负权回路。',
   complexity: { time: 'O(n·e)', space: 'O(n)', extra: '可处理负权边，并能判负权回路' },
   difficulty: '进阶',
-  inputHint: '固定输入 5 个顶点，在示例有向带权图（含负权边 B→E = -4）上演示 n-1 轮松弛。',
+  inputHint: '输入顶点个数（3–5），最多进行 n-1 轮松弛；一轮无更新时提前结束，再检查负权回路。',
   defaultInput: [5],
   input: { min: 3, max: 5, minLen: 1, maxLen: 1 },
   code: {
@@ -44,15 +44,16 @@ export const bellmanFord: AlgorithmMeta = {
       { text: '    int changed = 0;' },
       { text: '    for (int e = 0; e < m; e++) {', anchor: 'relax' },
       { text: '      int u = E[e].u, v = E[e].v, w = E[e].w;' },
-      { text: '      if (dist[u] + w < dist[v]) {' },
+      { text: '      if (dist[u] != INF && dist[u] + w < dist[v]) {' },
       { text: '        dist[v] = dist[u] + w; pred[v] = u; changed = 1;' },
       { text: '      }' },
       { text: '    }' },
       { text: '    if (!changed) break;  // 已经收敛，提前结束', anchor: 'quiet' },
       { text: '  }' },
       { text: '  for (int e = 0; e < m; e++)', anchor: 'check' },
-      { text: '    if (dist[E[e].u] + E[e].w < dist[E[e].v]) return false;' },
-      { text: '  return true;  // 无负权回路', anchor: 'done' },
+      { text: '    if (dist[E[e].u] != INF && dist[E[e].u] + E[e].w < dist[E[e].v])' },
+      { text: '      return false;  // 存在源点可达的负权回路', anchor: 'negative' },
+      { text: '  return true;  // 无源点可达的负权回路', anchor: 'done' },
       { text: '}' },
     ],
     python: [
@@ -63,41 +64,41 @@ export const bellmanFord: AlgorithmMeta = {
       { text: '    for r in range(1, n):', anchor: 'round' },
       { text: '        changed = False' },
       { text: '        for u, v, w in edges:', anchor: 'relax' },
-      { text: '            if dist[u] + w < dist[v]:' },
+      { text: '            if dist[u] != INF and dist[u] + w < dist[v]:' },
       { text: '                dist[v] = dist[u] + w' },
       { text: '                pred[v] = u' },
       { text: '                changed = True' },
       { text: '        if not changed:  # 已经收敛，提前结束', anchor: 'quiet' },
       { text: '            break' },
       { text: '    for u, v, w in edges:', anchor: 'check' },
-      { text: '        if dist[u] + w < dist[v]:' },
-      { text: '            return None  # 存在负权回路' },
+      { text: '        if dist[u] != INF and dist[u] + w < dist[v]:' },
+      { text: '            return None  # 存在源点可达的负权回路', anchor: 'negative' },
       { text: '    return dist', anchor: 'done' },
     ],
   },
   doc: [
     {
       heading: '核心思想',
-      body: '松弛一条边 u→v 就是问「从起点先到 u，再走这条边，会不会比现在的 dist[v] 更短」。Bellman-Ford 把图中所有边都松弛一遍称为一轮，重复 n-1 轮。因为任意一条最短路径最多包含 n-1 条边，每轮至少能让一条路径多确定一步，所以 n-1 轮之后一定收敛。',
+      body: '松弛一条边 u→v 就是问「从起点先到 u，再走这条边，会不会比现在的 dist[v] 更短」。Bellman-Ford 把图中所有边都松弛一遍称为一轮，最多进行 n-1 轮；若某一整轮没有更新，可以提前结束。不存在源点可达的负权回路时，最短路径可以取为至多 n-1 条边的简单路径，因此这些轮次足以求出最短距离。',
       points: [
         '每轮必须遍历全部边，顺序不影响正确性，只影响同一轮内能否提前用上新值',
-        'n-1 轮后若还有边能松弛，说明存在负权回路，最短路径无定义',
+        '额外检查时若仍有源点可达的边能松弛，说明存在可达负权回路，相关顶点的最短路径无定义',
         'dist 的初值是「起点 0、其余 ∞」，不是邻接矩阵的一行',
       ],
     },
     {
       heading: '为什么能处理负权边',
-      body: '它能处理负权边，是因为它不依赖「dist 最小的顶点已经最终确定」这个贪心前提，而是老老实实做 n-1 轮全局修正。Dijkstra 一旦把顶点并入 S 就不再改动，遇到负权会出错；Bellman-Ford 允许反复改，代价是时间从 O(n²) 退化到 O(n·e)。',
+      body: '它能处理负权边，是因为它不依赖「dist 最小的顶点已经最终确定」这个贪心前提，而是最多做 n-1 轮全局修正。Dijkstra 一旦把顶点并入 S 就不再改动，遇到负权会出错；Bellman-Ford 允许反复改，代价是时间从 O(n²) 退化到 O(n·e)。',
     },
     {
       heading: '复杂度与判环',
-      body: 'n-1 轮、每轮 e 条边，时间 O(n·e)，空间只需 dist 与 pred 两个数组，O(n)。若某一轮没有任何边被更新，可以提前退出（本演示仍走满 n-1 轮）。第 n 轮的检查遍历就是判环：只要能再松弛，就说明存在负权回路。',
+      body: '最多 n-1 轮、每轮 e 条边，时间 O(n·e)，空间只需 dist 与 pred 两个数组，O(n)。若某一整轮没有更新，本演示会立即结束松弛循环，与代码一致。随后额外遍历所有边进行检测；只有源点可达的边仍能松弛，才判定存在可达负权回路。这次检测不计入松弛轮数。',
       points: ['队列优化的版本叫 SPFA，平均更快但最坏仍是 O(n·e)', 'pred 数组记录前驱，可还原整条路径', '负权回路存在时，绕圈可以无限减小距离'],
     },
   ],
   quiz: [
-    { q: 'Bellman-Ford 最多需要几轮松弛？', options: ['1 轮', 'n-1 轮', 'n 轮', 'e 轮'], answer: 1, explain: '任意最短路径最多 n-1 条边，每轮至少推进一条边，n-1 轮必然收敛。' },
-    { q: '第 n 轮仍存在可松弛的边，说明？', options: ['算法写错了', '图中存在负权回路', '图不连通', '起点选错了'], answer: 1, explain: '已经收敛的最短距离不应再变小，还能变小说明绕负权回路可以无限缩短。' },
+    { q: 'Bellman-Ford 最多需要几轮松弛？', options: ['1 轮', 'n-1 轮', 'n 轮', 'e 轮'], answer: 1, explain: '无可达负权回路时，最短路径可以取为至多 n-1 条边的简单路径；最多 n-1 轮即可求解，也可能提前收敛。' },
+    { q: '额外检测时，源点可达的边仍可松弛，说明？', options: ['算法写错了', '存在源点可达的负权回路', '图不连通', '起点选错了'], answer: 1, explain: '完成最多 n-1 轮松弛或提前收敛后，若源点可达的边仍能松弛，说明存在可达负权回路。' },
     { q: '与 Dijkstra 相比，Bellman-Ford 的主要代价是？', options: ['不能求单源最短路', '时间从 O(n²) 退化到 O(n·e)', '需要 O(n²) 空间', '必须要求图连通'], answer: 1, explain: '放弃贪心、允许反复修正，换来对负权边的支持，时间是 O(n·e)。' },
   ],
   generate: (input) => {
@@ -114,6 +115,7 @@ export const bellmanFord: AlgorithmMeta = {
     let changed = 0;
     let total = 0;
     let relaxText = '—';
+    let cycleStatus = '未检测';
 
     const push = (anchor: string, phase: string, caption: string) => {
       const nodes = VEX.slice(0, n).map((v, i) =>
@@ -141,6 +143,8 @@ export const bellmanFord: AlgorithmMeta = {
             dist变化: relaxText,
             dist: VEX.slice(0, n).map((v, i) => `${v}:${show(dist[i])}`).join(' '),
             累计更新: total,
+            本轮更新: changed,
+            负权回路: cycleStatus,
           },
           caption,
         ),
@@ -155,13 +159,13 @@ export const bellmanFord: AlgorithmMeta = {
       changed = 0;
       curEdge = -1;
       relaxText = '—';
-      push('round', `第 ${r} 轮开始`, `第 ${r} 轮：按固定顺序把 ${m} 条边各松弛一次，共需 ${n - 1} 轮。`);
+      push('round', `第 ${r} 轮开始`, `第 ${r} 轮：按固定顺序把 ${m} 条边各松弛一次，最多进行 ${n - 1} 轮；若本轮无更新则提前结束。`);
 
       for (let e = 0; e < m; e++) {
         const [a, b, w] = dedges[e];
         curEdge = e;
         const cand = dist[a] + w;
-        if (cand < dist[b]) {
+        if (dist[a] !== INF && cand < dist[b]) {
           const old = dist[b];
           dist[b] = cand;
           pred[b] = a;
@@ -186,23 +190,32 @@ export const bellmanFord: AlgorithmMeta = {
       curEdge = -1;
       relaxText = '—';
       if (changed === 0) {
-        push('quiet', '本轮无更新', `第 ${r} 轮没有任何边被更新，说明已经收敛，可提前结束（本演示仍走满 ${n - 1} 轮）。`);
+        push('quiet', '本轮无更新', `第 ${r} 轮没有任何边被更新，距离已收敛，立即结束松弛循环；接下来执行额外的负权回路检测。`);
+        break;
       }
     }
 
-    round = n - 1;
     curEdge = -1;
     relaxText = '无';
+    cycleStatus = '检测中';
     push(
       'check',
       '负权回路检测',
-      '再完整遍历一次所有边：只要没有一条边还能松弛，就说明不存在负权回路；若还能松弛，则存在负权回路，最短路径无定义。',
+      `已执行 ${round} 轮松弛，现在额外遍历所有边：检查是否仍有源点可达的边可以松弛；这次检测不计入松弛轮数。`,
     );
+
+    const hasNegativeCycle = dedges.some(([a, b, w]) => dist[a] !== INF && dist[a] + w < dist[b]);
+    if (hasNegativeCycle) {
+      cycleStatus = '检测到可达负权回路';
+      push('negative', '检测到负权回路', '仍有源点可达的边可以松弛，检测到可达负权回路，不能给出有效的完整最短距离结果。');
+      return steps;
+    }
+    cycleStatus = '未检测到可达负权回路';
 
     const finalDist = VEX.slice(0, n)
       .map((v, i) => `${v}=${show(dist[i])}`)
       .join('，');
-    push('done', '完成', `n-1 轮结束且第 n 轮无法松弛，各顶点最短距离为 ${finalDist}。`);
+    push('done', '完成', `共执行 ${round} 轮松弛；额外检测未发现源点可达的负权回路，各顶点最短距离为 ${finalDist}。`);
     return steps;
   },
 };

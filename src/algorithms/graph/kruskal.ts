@@ -1,4 +1,4 @@
-import type { AlgorithmMeta, EdgeState, NodeState, TraceStep } from '../../engine/types';
+import type { AlgorithmMeta, EdgeState, NodeState, TraceStep, Scene } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
 
 /** 与 Prim 共用同一张带权无向图，便于对照两种最小生成树算法。 */
@@ -124,15 +124,18 @@ export const kruskalMst: AlgorithmMeta = {
       }
       return r;
     };
-    const comps = (): string => {
+    // 展示快照只读 parent，不能为了生成分组而额外执行路径压缩。
+    const rootOf = (x: number): number => { while (parent[x] !== x) x = parent[x]; return x; };
+    const groupsOf = () => {
       const groups = new Map<number, string[]>();
       for (let i = 0; i < n; i++) {
-        const r = find(i);
+        const r = rootOf(i);
         if (!groups.has(r)) groups.set(r, []);
         groups.get(r)!.push(VEX[i]);
       }
-      return [...groups.values()].map((g) => `{${g.join('')}}`).join(' ');
+      return [...groups].map(([root, members]) => ({ root: VEX[root], members }));
     };
+    let current: NonNullable<Scene['disjointSet']>['current'];
 
     let picked = 0;
     let total = 0;
@@ -149,12 +152,16 @@ export const kruskalMst: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          graphScene(nodes, baseEdges, `已选 ${picked} 条边，累计权值 ${total}`),
+          {
+            ...graphScene(nodes, baseEdges, `已选 ${picked} 条边，累计权值 ${total}`),
+            disjointSet: { groups: groupsOf(), parents: parent.map((p, index) => ({ vertex: VEX[index], parent: VEX[p] })),
+              current: current ? { ...current, roots: [...current.roots] } : undefined },
+          },
           {
             当前边: curEdge,
             权值: curWeight,
             已选边数: picked,
-            连通分量: comps(),
+            连通分量: groupsOf().map((group) => `{${group.members.join('')}}`).join(' '),
             累计权值: total,
           },
           caption,
@@ -171,6 +178,7 @@ export const kruskalMst: AlgorithmMeta = {
       states[ids[b]] = 'active';
       const ra = find(a);
       const rb = find(b);
+      current = { from: VEX[a], to: VEX[b], roots: [VEX[ra], VEX[rb]], action: 'check' };
       push(
         'check',
         '考察当前边',
@@ -181,11 +189,13 @@ export const kruskalMst: AlgorithmMeta = {
         w,
       );
       if (ra === rb) {
+        current = { ...current, action: 'reject' };
         eStates[eKey(a, b)] = 'reject';
         states[ids[a]] = 'default';
         states[ids[b]] = 'default';
         push('reject', '丢弃成环边', `两端已在同一连通分量，加入 (${VEX[a]},${VEX[b]}) 会形成回路，丢弃。`, `(${VEX[a]},${VEX[b]})`, w);
       } else {
+        current = { ...current, action: 'union' };
         parent[ra] = rb;
         picked += 1;
         total += w;
@@ -195,6 +205,7 @@ export const kruskalMst: AlgorithmMeta = {
         push('union', '选入并合并', `两端不在同一连通分量，选入该边，并把两个分量合并，已选 ${picked} 条。`, `(${VEX[a]},${VEX[b]})`, w);
       }
     }
+    current = undefined;
     push('done', '完成', `已选满 ${picked} 条边，最小生成树总权值为 ${total}。`, '—', '—');
     return steps;
   },

@@ -1,6 +1,7 @@
 import { forwardRef, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { EdgeState, ListLink, NodeState, Scene, SceneEdge } from '../engine/types';
 import { layoutGraph, layoutTree, type LayoutPoint } from '../engine/layout';
+import { GraphDetails } from './GraphDetails';
 
 const COLOR: Record<NodeState, { fill: string; stroke: string }> = {
   default: { fill: '#E6F1FB', stroke: '#85B7EB' },
@@ -123,7 +124,10 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
       <div className="stage-viewport" ref={viewportRef}>
         <div className="stage-content" ref={contentRef}>
         <div className="stage-canvas" ref={canvasRef} onScroll={syncHint}>
-          {scene.shortestPath ? <div className="shortest-path-stage">
+          {scene.distanceMatrix || scene.primTable || scene.disjointSet ? <div className="graph-details-stage">
+            <div className="graph-details-graph"><TreeGraphSvg scene={scene} compact /></div>
+            <GraphDetails scene={scene} />
+          </div> : scene.shortestPath ? <div className="shortest-path-stage">
             <div className="shortest-path-graph"><TreeGraphSvg scene={pathScene} compact onSelectVertex={setSelectedVertex} /></div>
             <ShortestPathTable data={scene.shortestPath} selected={selectedVertex} onSelect={setSelectedVertex} />
           </div> : scene.adjacency ? <div className="adjacency-stage">
@@ -136,7 +140,7 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
               <QueueSvg nodes={scene.aux.nodes} />
             </div>
           </div> : scene.aux?.layout === 'stack' || scene.aux?.layout === 'call-stack' ? <div className="bracket-stage">
-            <div className={isTreeGraph ? 'stack-graph' : 'bracket-sequence'}>
+            <div className={scene.kind === 'tree' ? 'stack-tree' : isTreeGraph ? 'stack-graph' : 'bracket-sequence'}>
               {isTreeGraph ? <TreeGraphSvg scene={scene} compact /> : <LinearSvg scene={scene} />}
             </div>
             <div className={scene.aux.layout === 'call-stack' ? 'bracket-stack call-stack-side' : 'bracket-stack'}>
@@ -180,7 +184,18 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
         {hintRight && <span className="scroll-hint" aria-hidden="true" />}
       </div>
       <div className="legend">
-        {scene.shortestPath ? <>
+        {scene.distanceMatrix ? <>
+          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />中转顶点／D[i][k]</span>
+          <span className="legend-item"><i style={{ background: COLOR.min.fill, borderColor: COLOR.min.stroke }} />D[k][j]</span>
+          <span className="legend-item"><i style={{ borderColor: EDGE_COLOR.active }} />目标 D[i][j]</span>
+          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />本步更新</span>
+        </> : scene.primTable || scene.disjointSet ? <>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.tree }} />已选生成树边</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.candidate }} />候选边／最小候选</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />正在考察</span>
+          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />{scene.primTable ? '本轮刷新' : '合并分量'}</span>
+          {scene.disjointSet && <span className="legend-item"><i style={{ background: COLOR.delete.fill, borderColor: COLOR.delete.stroke }} />同分量成环</span>}
+        </> : scene.shortestPath ? <>
           <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />距离已确定</span>
           <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />待确定顶点</span>
           <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />本步更新</span>
@@ -220,7 +235,7 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
         {LEGEND.map((l) => (
           <span key={l.state} className="legend-item">
             <i style={{ background: COLOR[l.state].fill, borderColor: COLOR[l.state].stroke }} />
-            {l.text}
+            {l.state === 'active' && scene.aux?.layout === 'call-stack' ? '当前调用' : l.state === 'sorted' && scene.output && scene.kind === 'tree' ? '已访问' : l.text}
           </span>
         ))}
         </>}
@@ -492,7 +507,7 @@ function StackSvg({ scene, compact = false }: { scene: Scene; compact?: boolean 
   const topY = top === null ? null : slotY(top) + slotHeight / 2;
 
   return (
-    <svg className="stack-svg" viewBox={compact ? `${callStack ? '84 0 396' : '90 0 270'} ${height}` : `0 0 ${width} ${height}`} width={compact ? callStack ? 396 : 270 : '100%'} height={height} role="img"
+    <svg className="stack-svg" viewBox={compact ? `${callStack ? '104 0 340' : '90 0 270'} ${height}` : `0 0 ${width} ${height}`} width={compact ? callStack ? 340 : 270 : '100%'} height={height} role="img"
       aria-label={callStack ? `递归调用栈，当前 ${top === null ? '空' : scene.nodes[top].value}` : top === null ? `顺序栈，容量 ${capacity}，空栈，top 等于负一` : `顺序栈，容量 ${capacity}，栈顶下标 ${top}`}>
       <text x={width / 2} y={26} textAnchor="middle" fontSize="13" fill="var(--muted)">{callStack ? '递归调用 ↓ 压栈 · 返回 ↑ 出栈' : '↓ 入栈 · ↑ 出栈'}</text>
       <text x={left - 25} y={opening - 7} textAnchor="middle" fontSize="11" fill="var(--muted)">{callStack ? '层数' : '下标'}</text>

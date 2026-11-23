@@ -90,7 +90,14 @@ export const postorderTree: AlgorithmMeta = {
           k++,
           anchor,
           phase,
-          { ...treeScene(nodes, edges, `后序序列：${seq.length ? seq.join(' ') : '空'}`), subtrees: current === undefined ? undefined : { root: ids[current], active } },
+          {
+            ...treeScene(nodes, edges, `后序序列：${seq.length ? seq.join(' ') : '空'}`),
+            subtrees: current === undefined ? undefined : { root: ids[current], active },
+            aux: { label: '后序遍历调用栈', layout: 'call-stack', capacity: Math.floor(Math.log2(n)) + 1,
+              nodes: stack.map((index, at) => node(ids[index], callStack[at], at === stack.length - 1 ? 'active' : 'default')),
+              pointers: [{ label: 'top', index: stack.length ? stack.length - 1 : null }] },
+            output: { label: '后序访问序列', values: seq.map(String) },
+          },
           {
             当前结点: callStack.at(-1) ?? '—',
             递归深度: stack.length,
