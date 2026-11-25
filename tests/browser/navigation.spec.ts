@@ -25,6 +25,26 @@ test('同一算法推进保留自测答案，换算法后清空', async ({ page 
   await expect(page.locator('.quiz-explain')).toHaveCount(0);
 });
 
+test('从二叉树切到阶乘时移除旧输入栏', async ({ page }) => {
+  await page.goto('/#/algo/tree/preorder');
+  const treeInput = page.getByRole('region', { name: '树输入', exact: true });
+  await expect(treeInput).toBeVisible();
+  await treeInput.getByRole('button', { name: '自定义二叉树', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '自定义二叉树' });
+  await dialog.getByLabel('层序输入').fill('A, null, B');
+  await dialog.getByRole('button', { name: '确定', exact: true }).click();
+  await mobileTab(page, '目录');
+  await page.locator('.catalog').getByRole('button', { name: '递归 · 求阶乘', exact: true }).click();
+  await expect(page.locator('h1')).toHaveText('递归 · 求阶乘');
+  await expect(page.locator('.col-center .graph-input')).toHaveCount(0);
+  const input = page.getByLabel('自定义数据', { exact: true });
+  await expect(input).toHaveValue('5');
+  await input.fill('6');
+  await page.getByRole('button', { name: '生成动画', exact: true }).click();
+  await expect(page.locator('.stage-canvas')).toContainText('fact(6)');
+  await expect(page.locator('.col-center > .controls-panel')).toHaveCount(1);
+});
+
 test('代码行通过 Enter 和空格跳转，并暂停播放', async ({ page }) => {
   await page.goto('/#/algo/sort/select-sort');
   await mobileTab(page, '代码');

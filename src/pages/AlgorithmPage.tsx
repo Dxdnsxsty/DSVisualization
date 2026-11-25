@@ -57,10 +57,10 @@ export function AlgorithmPage({ slug, stageRef, onFullscreen, fullscreenError, m
         </aside>
 
         <main className="col col-center">
-          {structureInput && <InputBar key={slug} algo={algo} />}
+          {structureInput && <InputBar key={`input/${slug}`} algo={algo} />}
           <PlayerStage stageRef={stageRef} onFullscreen={onFullscreen} fullscreenError={fullscreenError} />
-          <Controls key={slug} />
-          {!structureInput && <InputBar algo={algo} />}
+          <Controls key={`controls/${slug}`} />
+          {!structureInput && <InputBar key={`input/${slug}`} algo={algo} />}
         </main>
 
         <aside className="col col-right">
