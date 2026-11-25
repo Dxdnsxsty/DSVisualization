@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { usePlayer } from '../engine/player';
 import { tokenize } from '../engine/highlight';
 import { decodeMatchInput } from '../engine/input';
+import { decodeCustomGraph, formatTreeInput } from '../engine/structure-input';
 import type { AlgorithmMeta, TraceStep } from '../engine/types';
 
 const LANG_LABEL: Record<string, string> = { cpp: 'C++', python: 'Python' };
@@ -72,7 +73,18 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
     const ext = p.lang === 'python' ? 'py' : 'cpp';
     const prefix = p.lang === 'python' ? '# ' : '// ';
     const [main, pattern] = algo.input?.format === 'string-match' ? decodeMatchInput(p.input) : [];
-    const example = main !== undefined ? `主串 ${main}，模式串 ${pattern}` : p.input.join(', ');
+    const graph = algo.customGraph ? decodeCustomGraph(p.input) : undefined;
+    let example = p.input.join(', ');
+    if (main !== undefined) example = `主串 ${main}，模式串 ${pattern}`;
+    if (algo.input?.format === 'tree-level') example = formatTreeInput(p.input);
+    if (graph) {
+      const weighted = algo.customGraph === 'weighted';
+      const separator = algo.customGraph === 'undirected' ? '–' : '→';
+      const edges = graph.edges.map(([from, to, weight]) =>
+        `${graph.labels[from]}${separator}${graph.labels[to]}${weighted ? ` (${weight})` : ''}`);
+      const source = algo.customGraph === 'directed' ? '' : `，起点 ${graph.labels[graph.source]}`;
+      example = `顶点 ${graph.labels.join(', ')}${source}，边 ${edges.join(', ') || '无'}`;
+    }
     const code = lines.map((l) => l.text).join('\n');
     const program = algo.runnable?.(p.lang, p.input, code) ?? code;
     const text = `${prefix}${algo.title} · DS·Visual 教学示例\n${prefix}输入示例：${example}\n\n${program}\n`;

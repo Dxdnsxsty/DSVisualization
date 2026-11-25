@@ -309,7 +309,9 @@ function SubtreeOutlines({ edges, points, focus }: {
 }
 
 /** 树 / 图：圆形结点 + 带状态的边，坐标由 layout 统一给出。 */
-function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLabels }: { scene: Scene; compact?: boolean; onSelectVertex?: (id: string) => void; vertexLabels?: Map<string, string> }) {
+export function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLabels, label = '当前步骤的树 / 图状态' }: {
+  scene: Scene; compact?: boolean; onSelectVertex?: (id: string) => void; vertexLabels?: Map<string, string>; label?: string;
+}) {
   const markerId = useId();
   const markerUrl = (suffix: string) => `url(#${markerId}-${suffix})`;
   const edges: SceneEdge[] = scene.edges ?? [];
@@ -330,7 +332,7 @@ function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLabels }: 
       viewBox={`${left} ${top} ${width} ${height}`}
       width={compact ? width : '100%'}
       role="img"
-      aria-label="当前步骤的树 / 图状态"
+      aria-label={label}
     >
       <defs>
         <marker id={`${markerId}-default`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -366,16 +368,21 @@ function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLabels }: 
             : undefined;
         const length = Math.hypot(b.x - a.x, b.y - a.y);
         // 把路径箭头停在顶点外沿，避免箭头被后画的圆形顶点盖住。
-        const inset = (markedPath || scene.graphTrace === 'topology' || scene.shortestPath) && marker && length > 0 ? Math.min(NODE_R + 3, length / 3) / length : 0;
-        const mx = (a.x + b.x) / 2;
-        const my = (a.y + b.y) / 2;
+        const inset = (markedPath || e.directed || scene.graphTrace === 'topology' || scene.shortestPath) && marker && length > 0 ? Math.min(NODE_R + 3, length / 3) / length : 0;
+        // 两条反向边有各自的箭头和权值，沿各自方向的法线错开。
+        const paired = length > 0 && e.directed && edges.some((other) =>
+          other.directed && other.from === e.to && other.to === e.from);
+        const offsetX = paired ? -(b.y - a.y) * 14 / length : 0;
+        const offsetY = paired ? (b.x - a.x) * 14 / length : 0;
+        const mx = (a.x + b.x) / 2 + offsetX;
+        const my = (a.y + b.y) / 2 + offsetY;
         return (
           <g key={`${e.from}>${e.to}-${i}`}>
             <line
-              x1={a.x + (e.bidirectional ? (b.x - a.x) * inset : 0)}
-              y1={a.y + (e.bidirectional ? (b.y - a.y) * inset : 0)}
-              x2={b.x - (b.x - a.x) * inset}
-              y2={b.y - (b.y - a.y) * inset}
+              x1={a.x + offsetX + (e.bidirectional ? (b.x - a.x) * inset : 0)}
+              y1={a.y + offsetY + (e.bidirectional ? (b.y - a.y) * inset : 0)}
+              x2={b.x + offsetX - (b.x - a.x) * inset}
+              y2={b.y + offsetY - (b.y - a.y) * inset}
               stroke={stroke}
               strokeWidth={st === 'active' || markedPath ? 2.4 : 1.6}
               strokeDasharray={dashed ? '5 4' : undefined}

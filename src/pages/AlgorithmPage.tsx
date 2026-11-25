@@ -35,6 +35,7 @@ export function AlgorithmPage({ slug, stageRef, onFullscreen, fullscreenError, m
   useLayoutEffect(() => { restoreScroll(); }, [slug]);
 
   if (!algo) return <NotFound slug={slug} />;
+  const structureInput = algo.customGraph || algo.input?.format === 'tree-level';
 
   return (
     <div className="workbench" data-tab={mobileTab}>
@@ -56,9 +57,10 @@ export function AlgorithmPage({ slug, stageRef, onFullscreen, fullscreenError, m
         </aside>
 
         <main className="col col-center">
+          {structureInput && <InputBar key={slug} algo={algo} />}
           <PlayerStage stageRef={stageRef} onFullscreen={onFullscreen} fullscreenError={fullscreenError} />
-          <Controls />
-          <InputBar algo={algo} />
+          <Controls key={slug} />
+          {!structureInput && <InputBar algo={algo} />}
         </main>
 
         <aside className="col col-right">

@@ -1,3 +1,4 @@
+import { levelTree, TREE_LEVEL_INPUT } from '../../engine/structure-input';
 import type { AlgorithmMeta, EdgeState, NodeState, SceneEdge, TraceStep } from '../../engine/types';
 import { edge, makeStep, node, treeScene } from '../../engine/scene';
 
@@ -12,12 +13,12 @@ export const levelorderTree: AlgorithmMeta = {
   summary: '队列逐层扩展，先进先出保证按层访问。',
   complexity: { time: 'O(n)', space: 'O(w)', extra: 'w 为树的最大宽度，即队列峰值' },
   difficulty: '入门',
-  inputHint: '输入 2–15 个整数，按层序建完全二叉树（第 i 个结点的孩子是 2i+1、2i+2）。',
+  inputHint: '按层序输入 1–15 个结点，支持整数或单个英文字母。用 null 表示空孩子，如 A, B, C, null, D。',
   defaultInput: DEFAULT,
-  input: { min: -999, max: 999, minLen: 2, maxLen: 15 },
+  input: TREE_LEVEL_INPUT,
   code: {
     cpp: [
-      { text: '// 按层序数组建完全二叉树', anchor: 'build' },
+      { text: '// 按层序输入建树，null 表示空孩子', anchor: 'build' },
       { text: 'void LevelOrder(BTNode *b) {' },
       { text: '  SqQueue q; InitQueue(&q);', anchor: 'init' },
       { text: '  if (b != NULL) enQueue(&q, b);', anchor: 'pushroot' },
@@ -30,7 +31,7 @@ export const levelorderTree: AlgorithmMeta = {
       { text: '}', anchor: 'done' },
     ],
     python: [
-      { text: '# 按层序数组建完全二叉树', anchor: 'build' },
+      { text: '# 按层序输入建树，null 表示空孩子', anchor: 'build' },
       { text: 'from collections import deque' },
       { text: 'def level_order(b):' },
       { text: '    q = deque()', anchor: 'init' },
@@ -68,14 +69,13 @@ export const levelorderTree: AlgorithmMeta = {
     { q: '对层序为 1 2 3 4 5 6 7 的完全二叉树做层次遍历，输出是？', options: ['1 2 3 4 5 6 7', '1 2 4 5 3 6 7', '4 2 5 1 6 3 7', '7 6 5 4 3 2 1'], answer: 0, explain: '逐层从左到右，正好就是建树时的层序数组。' },
   ],
   generate: (input) => {
-    const raw = input.filter((v) => Number.isFinite(v));
-    const vals = (raw.length >= 2 ? raw : DEFAULT).slice(0, 15);
+    const { vals, left, right } = levelTree(input.length ? input : DEFAULT);
     const n = vals.length;
     const ids = vals.map((_, i) => `n${i}`);
     const baseEdges: SceneEdge[] = [];
     for (let i = 0; i < n; i++) {
-      if (2 * i + 1 < n) baseEdges.push(edge(ids[i], ids[2 * i + 1]));
-      if (2 * i + 2 < n) baseEdges.push(edge(ids[i], ids[2 * i + 2]));
+      if (left[i] >= 0) baseEdges.push({ ...edge(ids[i], ids[left[i]]), side: 'left' });
+      if (right[i] >= 0) baseEdges.push({ ...edge(ids[i], ids[right[i]]), side: 'right' });
     }
     const steps: TraceStep[] = [];
     let k = 0;
@@ -83,7 +83,7 @@ export const levelorderTree: AlgorithmMeta = {
     const edgeStates: Record<string, EdgeState> = {};
     const queue: number[] = [];
     let head = 0;
-    const seq: number[] = [];
+    const seq: (number | string)[] = [];
 
     const queueText = () => (head < queue.length ? queue.slice(head).map((i) => vals[i]).join(' ') : '空');
 
@@ -119,7 +119,7 @@ export const levelorderTree: AlgorithmMeta = {
       );
     };
 
-    push('build', '建树', `按层序把 ${n} 个结点挂成完全二叉树，根为 ${vals[0]}。`);
+    push('build', '建树', `按层序把 ${n} 个结点连接成二叉树，根为 ${vals[0]}。`);
     push('init', '初始化队列', '创建一个空队列，准备存放待访问的结点。');
 
     queue.push(0);
@@ -136,9 +136,9 @@ export const levelorderTree: AlgorithmMeta = {
       seq.push(vals[cur]);
       push('visit', '访问结点', `访问 ${vals[cur]}，它是层次序列的第 ${seq.length} 个结点。`);
 
-      const l = 2 * cur + 1;
-      const r = 2 * cur + 2;
-      if (l < n) {
+      const l = left[cur];
+      const r = right[cur];
+      if (l >= 0) {
         edgeStates[`${ids[cur]}>${ids[l]}`] = 'active';
         queue.push(l);
         states[ids[l]] = 'active';
@@ -148,7 +148,7 @@ export const levelorderTree: AlgorithmMeta = {
         push('enql', '左孩子为空', `${vals[cur]} 没有左孩子，跳过入队。`);
       }
 
-      if (r < n) {
+      if (r >= 0) {
         edgeStates[`${ids[cur]}>${ids[r]}`] = 'active';
         queue.push(r);
         states[ids[r]] = 'active';

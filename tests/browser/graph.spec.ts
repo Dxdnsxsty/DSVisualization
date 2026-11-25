@@ -33,30 +33,47 @@ test('Dijkstra 距离、前驱、候选路径、最终路径与回退', async ({
 test('Dijkstra 不可达案例、修改数量、默认与案例回放', async ({ page }) => {
   await open(page, 'graph/dijkstra');
   const input = page.locator('.input-panel');
-  await input.getByRole('button', { name: '目标不可达', exact: true }).click();
+  const preset = page.getByRole('button', { name: '预设案例', exact: true });
+  await preset.click();
+  await page.getByRole('button', { name: '收起预设', exact: true }).click();
+  await expect(input).toBeHidden();
+  await preset.click();
   await expect(page.getByLabel('顶点数量')).toHaveValue('6');
+  await input.getByRole('button', { name: '目标不可达', exact: true }).click();
+  await expect(input).toBeHidden();
+  await expect(preset).toBeFocused();
   await controls(page).getByTitle('跳到结尾 (End)').click();
   await page.locator('.shortest-path-table').getByRole('button', { name: '查看 F 的路径' }).click();
   await expect(page.getByLabel('所选路径')).toContainText('无法到达 F');
   await expect(page.locator('[data-vertex="F"] td')).toHaveText(['∞', '—', '否']);
+  await preset.click();
+  await page.getByLabel('顶点数量').fill('2');
+  await input.getByRole('button', { name: '生成动画' }).click();
+  await expect(input.getByRole('alert')).toContainText('3–6');
   await page.getByLabel('顶点数量').fill('3');
   await input.getByRole('button', { name: '生成动画' }).click();
-  await expect(input.getByRole('button', { name: '目标不可达' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(input).toBeHidden();
   await controls(page).getByTitle('跳到结尾 (End)').click();
   await expect(page.locator('[data-vertex="C"] td')).toHaveText(['∞', '—', '否']);
   // 使用公开的回放 URL 验证案例编号随输入一起保存。
   await page.goto('/#/algo/graph/dijkstra?input=3,1&step=0');
   await expect(page.getByLabel('顶点数量')).toHaveValue('3');
+  await preset.click();
   await expect(input.getByRole('button', { name: '目标不可达' })).toHaveAttribute('aria-pressed', 'true');
   await input.getByRole('button', { name: '默认', exact: true }).click();
+  await expect(input).toBeHidden();
+  await preset.click();
   await expect(page.getByLabel('顶点数量')).toHaveValue('6');
   await expect(input.getByRole('button', { name: '全部可达' })).toHaveAttribute('aria-pressed', 'true');
+  await input.getByRole('button', { name: '随机', exact: true }).click();
+  await expect(input).toBeHidden();
 });
 
 for (const [slug, legend] of [['graph/dfs', '当前调用'], ['graph/bfs', '新入队']]) {
   test(`${slug} 非连通图与辅助结构图例`, async ({ page }) => {
     await open(page, slug);
     await expect(page.locator('.stage .legend')).toContainText(legend);
+    await page.getByRole('button', { name: '预设案例', exact: true }).click();
     await page.getByRole('button', { name: '非连通图', exact: true }).click();
     await controls(page).getByTitle('跳到结尾 (End)').click();
     await expect(controls(page).locator('.caption-text')).toContainText('仍未访问');
@@ -66,11 +83,13 @@ for (const [slug, legend] of [['graph/dfs', '当前调用'], ['graph/bfs', '新�
 
 test('拓扑排序有环时只展示部分输出，切换后恢复完整序列', async ({ page }) => {
   await open(page, 'graph/topo-sort');
+  await page.getByRole('button', { name: '预设案例', exact: true }).click();
   await page.getByRole('button', { name: '存在环', exact: true }).click();
   await controls(page).getByTitle('跳到结尾 (End)').click();
   await expect(controls(page).locator('.phase-tag')).toHaveText('检测到环');
   await expect(controls(page).locator('.caption-text')).toContainText('无法完成拓扑排序');
   await expect(page.locator('.output-sequence .aux-cell')).toHaveText(['A']);
+  await page.getByRole('button', { name: '预设案例', exact: true }).click();
   await page.getByRole('button', { name: '无环图', exact: true }).click();
   await expect(page.locator('.output-sequence')).toContainText('尚未输出');
   await controls(page).getByTitle('跳到结尾 (End)').click();

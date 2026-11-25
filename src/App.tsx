@@ -75,6 +75,7 @@ export default function App() {
     const on = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
+      if (target?.closest('dialog[open]')) return;
       if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
       const p = usePlayer.getState();
       if (route.name !== 'algo' || route.slug !== p.slug) return;

@@ -31,11 +31,11 @@ interface TreeOpts {
 export function layoutTree(nodes: SceneNode[], edges: SceneEdge[], opts: TreeOpts): LayoutResult {
   const levelH = opts.levelH ?? LEVEL_H;
   const leafGap = opts.leafGap ?? LEAF_GAP;
-  const children = new Map<string, string[]>();
+  const children = new Map<string, SceneEdge[]>();
   const hasParent = new Set<string>();
   for (const e of edges) {
     if (!children.has(e.from)) children.set(e.from, []);
-    children.get(e.from)!.push(e.to);
+    children.get(e.from)!.push(e);
     hasParent.add(e.to);
   }
   const root = nodes.find((n) => !hasParent.has(n.id))?.id ?? nodes[0]?.id;
@@ -51,7 +51,16 @@ export function layoutTree(nodes: SceneNode[], edges: SceneEdge[], opts: TreeOpt
       xs.set(id, x);
       return x;
     }
-    const childXs = kids.map((k) => walk(k, d + 1));
+    // 给单个孩子留出另一侧的空槽，让左斜树和右斜树可以区分。
+    if (kids.length === 1 && kids[0].side) {
+      const child = kids[0];
+      const left = child.side === 'left' ? walk(child.to, d + 1) : slot++;
+      const right = child.side === 'right' ? walk(child.to, d + 1) : slot++;
+      const x = (left + right) / 2;
+      xs.set(id, x);
+      return x;
+    }
+    const childXs = kids.map((k) => walk(k.to, d + 1));
     const x = (Math.min(...childXs) + Math.max(...childXs)) / 2;
     xs.set(id, x);
     return x;

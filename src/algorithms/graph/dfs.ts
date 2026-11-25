@@ -1,9 +1,9 @@
 import type { AlgorithmMeta, EdgeState, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
-import { GRAPH_SIZE_INPUT } from '../../engine/input';
+import { customGraphInput, decodeCustomGraph } from '../../engine/structure-input';
 
 /** 固定示例图（无向）：A-B、A-C、B-D、B-E、C-F、E-F */
-const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
+const PRESET_VERTICES = ['A', 'B', 'C', 'D', 'E', 'F'];
 const POS: { x: number; y: number }[] = [
   { x: 0.5, y: 0.04 },
   { x: 0.16, y: 0.34 },
@@ -31,7 +31,8 @@ export const dfsGraph: AlgorithmMeta = {
   difficulty: '进阶',
   inputHint: '输入顶点个数（3–6），按示例无向图演示从 A 出发的深度优先遍历。',
   defaultInput: [6],
-  input: GRAPH_SIZE_INPUT,
+  input: customGraphInput('undirected'),
+  customGraph: 'undirected',
   graphCases: [
     { id: 0, label: '连通图', description: '从 A 出发可以访问全部顶点。' },
     { id: 1, label: '非连通图', description: '从 A 只能访问所在连通分量，观察哪些顶点仍未访问。' },
@@ -79,9 +80,13 @@ export const dfsGraph: AlgorithmMeta = {
     { q: '对示例图从 A 出发，第二个被访问的顶点是？', options: ['B', 'C', 'D', 'F'], answer: 0, explain: '按邻接点从小到大的次序，A 先走到 B，再深入 B 的邻接点 D。' },
   ],
   generate: (input) => {
-    const n = Math.min(Math.max(input[0] || 6, 3), 6);
-    const ids = VEX.slice(0, n).map((v) => `v${v}`);
-    const pairs = (input[1] === 1 ? [[0, 1], [2, 3], [3, 4], [4, 5]] : ADJ).filter(([a, b]) => a < n && b < n);
+    const custom = decodeCustomGraph(input);
+    const n = custom?.labels.length ?? Math.min(Math.max(input[0] || 6, 3), 6);
+    const source = custom?.source ?? 0;
+    const vertices = custom?.labels ?? PRESET_VERTICES.slice(0, n);
+    const ids = vertices.map((v) => `v${v}`);
+    const pairs = custom?.edges ?? (input[1] === 1 ? [[0, 1], [2, 3], [3, 4], [4, 5]] : ADJ)
+      .filter(([a, b]) => a < n && b < n);
     const steps: TraceStep[] = [];
     let k = 0;
     const visited: boolean[] = Array(n).fill(false);
@@ -90,9 +95,9 @@ export const dfsGraph: AlgorithmMeta = {
 
     const push = (anchor: string, phase: string, caption: string, stack: number[]) => {
       const current = stack.at(-1);
-      const callStack = stack.map((v) => `DFS(${VEX[v]})`);
-      const nodes = VEX.slice(0, n).map((v, i) =>
-        nodeAt(ids[i], v, POS[i].x, POS[i].y, visited[i] ? 'visited' : i === current ? 'active' : 'default', undefined, i === current ? '当前' : undefined),
+      const callStack = stack.map((v) => `DFS(${vertices[v]})`);
+      const nodes = vertices.map((v, i) =>
+        nodeAt(ids[i], v, custom ? undefined : POS[i].x, custom ? undefined : POS[i].y, visited[i] ? 'visited' : i === current ? 'active' : 'default', undefined, i === current ? '当前' : undefined),
       );
       const edges = pairs.map(([a, b]) => {
         if (parents[b] === a) return edge(ids[a], ids[b], undefined, 'tree', true);
@@ -108,14 +113,14 @@ export const dfsGraph: AlgorithmMeta = {
           anchor,
           phase,
           {
-            ...graphScene(nodes, edges, `从 A 出发，已访问 ${visited.filter(Boolean).length} / ${n}`),
+            ...graphScene(nodes, edges, `从 ${vertices[source]} 出发，已访问 ${visited.filter(Boolean).length} / ${n}`),
             graphTrace: 'traversal',
             aux: {
               label: 'DFS 递归调用栈',
               layout: 'call-stack',
               capacity: n,
               nodes: stack.map((v, index) => ({
-                id: ids[v], value: `DFS(${VEX[v]})`,
+                id: ids[v], value: `DFS(${vertices[v]})`,
                 state: index === stack.length - 1 ? 'active' : 'default',
               })),
               pointers: [{ label: 'top', index: stack.length ? stack.length - 1 : null }],
@@ -123,7 +128,7 @@ export const dfsGraph: AlgorithmMeta = {
           },
           {
             当前顶点: callStack.at(-1) ?? '—',
-            已访问: visited.map((b, i) => (b ? VEX[i] : '')).filter(Boolean).join('') || '空',
+            已访问: visited.map((b, i) => (b ? vertices[i] : '')).filter(Boolean).join('') || '空',
             递归深度: stack.length,
           },
           caption,
@@ -134,35 +139,35 @@ export const dfsGraph: AlgorithmMeta = {
 
     const dfs = (v: number, stack: number[]): void => {
       stack.push(v);
-      push('visit', '访问顶点', `进入 ${VEX[v]}，把它加入遍历序列。`, stack);
+      push('visit', '访问顶点', `进入 ${vertices[v]}，把它加入遍历序列。`, stack);
       visited[v] = true;
-      push('mark', '标记已访问', `visited[${VEX[v]}] = 1，之后不会再进入它。`, stack);
+      push('mark', '标记已访问', `visited[${vertices[v]}] = 1，之后不会再进入它。`, stack);
 
       for (let w = 0; w < n; w++) {
         const linked = pairs.some(([a, b]) => (a === v && b === w) || (a === w && b === v));
         if (!linked) continue;
         checking = { from: v, to: w, state: 'active' };
-        push('loop', '考察邻接点', `检查 ${VEX[v]} 的邻接点 ${VEX[w]}。`, stack);
+        push('loop', '考察邻接点', `检查 ${vertices[v]} 的邻接点 ${vertices[w]}。`, stack);
         if (visited[w]) {
           checking.state = 'reject';
-          push('check', '跳过已访问', `${VEX[w]} 已访问过，跳过它，继续看下一个邻接点。`, stack);
+          push('check', '跳过已访问', `${vertices[w]} 已访问过，跳过它，继续看下一个邻接点。`, stack);
           checking = undefined;
         } else {
           checking = undefined;
           parents[w] = v;
-          push('recurse', '递归深入', `${VEX[w]} 未访问，从它继续深度优先，压栈进入。`, stack);
+          push('recurse', '递归深入', `${vertices[w]} 未访问，从它继续深度优先，压栈进入。`, stack);
           dfs(w, stack);
         }
       }
       stack.pop();
-      push('ret', '回溯', `${VEX[v]} 的所有邻接点都处理完，本次调用返回上一层。`, stack);
+      push('ret', '回溯', `${vertices[v]} 的所有邻接点都处理完，本次调用返回上一层。`, stack);
     };
 
-    dfs(0, []);
-    const remaining = VEX.slice(0, n).filter((_, index) => !visited[index]);
+    dfs(source, []);
+    const remaining = vertices.filter((_, index) => !visited[index]);
     push('done', '遍历完成', remaining.length
-      ? `从 A 出发的遍历结束；${remaining.join('、')} 不与 A 连通，仍未访问。遍历全图需要从未访问顶点再次发起 DFS。`
-      : '从 A 出发的遍历结束，所有顶点均已访问，调用栈已空。', []);
+      ? `从 ${vertices[source]} 出发的遍历结束；${remaining.join('、')} 不与 ${vertices[source]} 连通，仍未访问。遍历全图需要从未访问顶点再次发起 DFS。`
+      : `从 ${vertices[source]} 出发的遍历结束，所有顶点均已访问，调用栈已空。`, []);
     return steps;
   },
 };

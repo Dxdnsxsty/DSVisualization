@@ -134,7 +134,7 @@ export interface QuizItem {
 
 /** 输入规则：由算法自己声明，Controls 据此校验并提供合法的「随机」输入 */
 export interface InputSpec {
-  format?: 'string-match' | 'graph-size'; // 特定输入界面；图案例编码不直接展示给用户
+  format?: 'string-match' | 'graph-size' | 'tree-level';
   /** 单个数值的允许范围（含端点） */
   min?: number;
   max?: number;
@@ -160,9 +160,12 @@ export interface AlgorithmMeta {
   /** 省略时按「2–10 个 -999~999 的整数」处理 */
   input?: InputSpec;
   graphCases?: { id: number; label: string; description: string }[];
+  customGraph?: CustomGraphKind;
   code: Record<string, CodeLine[]>; // 每种语言都必须覆盖全部行锚点
   runnable?: (lang: string, input: number[], code: string) => string;
   doc: DocSection[];
   quiz: QuizItem[];
   generate: (input: number[]) => TraceStep[];
 }
+
+export type CustomGraphKind = 'undirected' | 'directed' | 'weighted';

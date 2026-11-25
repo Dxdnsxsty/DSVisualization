@@ -1,9 +1,9 @@
 import type { AlgorithmMeta, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
-import { GRAPH_SIZE_INPUT } from '../../engine/input';
+import { customGraphInput, decodeCustomGraph } from '../../engine/structure-input';
 
 /** 固定示例图（无向，明显分三层）：A-B、A-C、B-D、B-E、C-E、C-F、E-F */
-const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
+const PRESET_VERTICES = ['A', 'B', 'C', 'D', 'E', 'F'];
 const POS: { x: number; y: number }[] = [
   { x: 0.5, y: 0.05 },
   { x: 0.14, y: 0.34 },
@@ -35,7 +35,8 @@ export const bfsGraph: AlgorithmMeta = {
   difficulty: '入门',
   inputHint: '输入顶点个数（3–6），按示例无向图演示从 A 出发的广度优先遍历。',
   defaultInput: [6],
-  input: GRAPH_SIZE_INPUT,
+  input: customGraphInput('undirected'),
+  customGraph: 'undirected',
   graphCases: [
     { id: 0, label: '连通图', description: '从 A 出发，按距离逐层访问全部顶点。' },
     { id: 1, label: '非连通图', description: '队列清空后，其他连通分量的顶点仍未访问。' },
@@ -99,9 +100,13 @@ export const bfsGraph: AlgorithmMeta = {
     { q: '对示例图从 A 出发，第三层（距离为 2）的顶点有几个？', options: ['1 个', '2 个', '3 个', '4 个'], answer: 2, explain: '第一层 A，第二层 B、C，第三层 D、E、F 共 3 个。' },
   ],
   generate: (input) => {
-    const n = Math.min(Math.max(input[0] || 6, 3), 6);
-    const ids = VEX.slice(0, n).map((v) => `v${v}`);
-    const pairs = (input[1] === 1 ? [[0, 1], [2, 3], [3, 4], [4, 5]] : ADJ).filter(([a, b]) => a < n && b < n);
+    const custom = decodeCustomGraph(input);
+    const n = custom?.labels.length ?? Math.min(Math.max(input[0] || 6, 3), 6);
+    const source = custom?.source ?? 0;
+    const vertices = custom?.labels ?? PRESET_VERTICES.slice(0, n);
+    const ids = vertices.map((v) => `v${v}`);
+    const pairs = custom?.edges ?? (input[1] === 1 ? [[0, 1], [2, 3], [3, 4], [4, 5]] : ADJ)
+      .filter(([a, b]) => a < n && b < n);
     const steps: TraceStep[] = [];
     let k = 0;
     const visited: boolean[] = Array(n).fill(false);
@@ -112,8 +117,8 @@ export const bfsGraph: AlgorithmMeta = {
     const dist: number[] = Array(n).fill(-1);
 
     const push = (anchor: string, phase: string, caption: string, cur = -1) => {
-      const nodes = VEX.slice(0, n).map((v, i) =>
-        nodeAt(ids[i], v, POS[i].x, POS[i].y, visited[i] ? 'visited' : 'default', undefined, i === cur ? '当前' : undefined),
+      const nodes = vertices.map((v, i) =>
+        nodeAt(ids[i], v, custom ? undefined : POS[i].x, custom ? undefined : POS[i].y, visited[i] ? 'visited' : 'default', undefined, i === cur ? '当前' : undefined),
       );
       const edges = pairs.map(([a, b]) => {
         if (parents[b] === a) return edge(ids[a], ids[b], undefined, 'tree', true);
@@ -126,56 +131,59 @@ export const bfsGraph: AlgorithmMeta = {
           anchor,
           phase,
           {
-            ...graphScene(nodes, edges, `从 A 出发，已标记 ${visited.filter(Boolean).length} 个顶点`),
+            ...graphScene(nodes, edges, `从 ${vertices[source]} 出发，已标记 ${visited.filter(Boolean).length} 个顶点`),
             graphTrace: 'traversal',
             aux: {
               label: 'BFS 待扩展顶点队列',
               layout: 'queue',
               nodes: queue.map((v, index) => ({
-                id: ids[v], value: VEX[v],
+                id: ids[v], value: vertices[v],
                 state: index === queue.length - 1 && ['init', 'enqueue'].includes(anchor)
                   ? 'insert' : index === 0 ? 'active' : 'default',
               })),
             },
           },
           {
-            队列: queue.map((v) => VEX[v]).join(' ') || '空',
-            当前顶点: cur >= 0 ? VEX[cur] : '—',
+            队列: queue.map((v) => vertices[v]).join(' ') || '空',
+            当前顶点: cur >= 0 ? vertices[cur] : '—',
             当前层: cur >= 0 && dist[cur] >= 0 ? dist[cur] : '—',
-            遍历序列: order.map((v) => VEX[v]).join('') || '空',
+            遍历序列: order.map((v) => vertices[v]).join('') || '空',
           },
           caption,
         ),
       );
     };
 
-    visited[0] = true;
-    dist[0] = 0;
-    queue.push(0);
-    push('init', '初始化', '起点 A 入队并标记已访问，队列中的顶点都是「已发现待扩展」。');
+    visited[source] = true;
+    dist[source] = 0;
+    queue.push(source);
+    push('init', '初始化', `起点 ${vertices[source]} 入队并标记已访问，队列中的顶点都是「已发现待扩展」。`);
 
     while (queue.length > 0) {
       const u = queue.shift() as number;
-      push('dequeue', '出队', `队头 ${VEX[u]} 出队，接下来扩展它的所有邻接点。`, u);
+      push('dequeue', '出队', `队头 ${vertices[u]} 出队，接下来扩展它的所有邻接点。`, u);
       order.push(u);
-      push('visit', '访问顶点', `访问 ${VEX[u]}，它是第 ${dist[u] + 1} 层（距起点 ${dist[u]} 条边）的顶点。`, u);
+      push('visit', '访问顶点', `访问 ${vertices[u]}，它是第 ${dist[u] + 1} 层（距起点 ${dist[u]} 条边）的顶点。`, u);
 
       for (let w = 0; w < n; w++) {
         if (!pairs.some(([a, b]) => (a === u && b === w) || (a === w && b === u))) continue;
         if (visited[w]) {
           skipped.add(eKey(u, w));
-          push('check', '跳过已访问', `邻接点 ${VEX[w]} 已访问过，跳过，继续看下一个邻接点。`, u);
+          push('check', '跳过已访问', `邻接点 ${vertices[w]} 已访问过，跳过，继续看下一个邻接点。`, u);
           continue;
         }
         visited[w] = true;
         dist[w] = dist[u] + 1;
         queue.push(w);
         parents[w] = u;
-        push('enqueue', '发现并入队', `${VEX[w]} 未被访问，标记 visited 后入队，距离为 ${dist[w]}。`, u);
+        push('enqueue', '发现并入队', `${vertices[w]} 未被访问，标记 visited 后入队，距离为 ${dist[w]}。`, u);
       }
     }
-    const remaining = VEX.slice(0, n).filter((_, index) => !visited[index]);
-    push('done', '遍历完成', `队列已空，从 A 出发的广度优先序列为 ${order.map((v) => VEX[v]).join(' → ')}。${remaining.length ? `${remaining.join('、')} 不与 A 连通，仍未访问；遍历全图需从未访问顶点再次发起 BFS。` : '所有顶点均已访问。'}`);
+    const remaining = vertices.filter((_, index) => !visited[index]);
+    const ending = remaining.length
+      ? `${remaining.join('、')} 不与 ${vertices[source]} 连通，仍未访问；遍历全图需从未访问顶点再次发起 BFS。`
+      : '所有顶点均已访问。';
+    push('done', '遍历完成', `队列已空，从 ${vertices[source]} 出发的广度优先序列为 ${order.map((v) => vertices[v]).join(' → ')}。${ending}`);
     return steps;
   },
 };

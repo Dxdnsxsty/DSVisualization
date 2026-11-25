@@ -1,9 +1,9 @@
 import type { AlgorithmMeta, EdgeState, NodeState, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, nodeAt } from '../../engine/scene';
-import { GRAPH_SIZE_INPUT } from '../../engine/input';
+import { customGraphInput, decodeCustomGraph } from '../../engine/structure-input';
 
 /** 固定有向带权图（权值全部非负）：A→B2、A→C5、B→C2、B→D6、C→D2、C→E7、D→E1、D→F4、E→F3 */
-const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
+const PRESET_VERTICES = ['A', 'B', 'C', 'D', 'E', 'F'];
 const POS: { x: number; y: number }[] = [
   { x: 0.06, y: 0.5 },
   { x: 0.3, y: 0.1 },
@@ -34,7 +34,8 @@ export const dijkstraShortest: AlgorithmMeta = {
   difficulty: '进阶',
   inputHint: '输入顶点个数（3–6），选择可达或不可达案例；点击图中顶点或计算表按钮查看从 A 出发的路径。',
   defaultInput: [6],
-  input: GRAPH_SIZE_INPUT,
+  input: customGraphInput('weighted'),
+  customGraph: 'weighted',
   graphCases: [
     { id: 0, label: '全部可达', description: '从 A 出发，所有顶点都有最短路径。' },
     { id: 1, label: '目标不可达', description: '最后一个顶点没有入边，距离保持 ∞；观察算法如何结束。' },
@@ -108,9 +109,12 @@ export const dijkstraShortest: AlgorithmMeta = {
     { q: '示例图从 A 出发，dist[F] 最终是多少？', options: ['7', '9', '10', '12'], answer: 2, explain: '路径 A→B→C→D→F 权值为 2+2+2+4 = 10，比经 E 的 11 更短。' },
   ],
   generate: (input) => {
-    const n = Math.min(Math.max(input[0] || 6, 3), 6);
-    const ids = VEX.slice(0, n).map((v) => `v${v}`);
-    const dedges = DEDGES.filter(([a, b]) => a < n && b < n && (input[1] !== 1 || b !== n - 1));
+    const custom = decodeCustomGraph(input);
+    const n = custom?.labels.length ?? Math.min(Math.max(input[0] || 6, 3), 6);
+    const source = custom?.source ?? 0;
+    const vertices = custom?.labels ?? PRESET_VERTICES.slice(0, n);
+    const ids = vertices.map((v) => `v${v}`);
+    const dedges = custom?.edges ?? DEDGES.filter(([a, b]) => a < n && b < n && (input[1] !== 1 || b !== n - 1));
     const steps: TraceStep[] = [];
     let k = 0;
     const dist: number[] = Array(n).fill(Infinity);
@@ -120,8 +124,8 @@ export const dijkstraShortest: AlgorithmMeta = {
     const states: Record<string, NodeState> = {};
 
     const push = (anchor: string, phase: string, caption: string, u: number, w: number | string, changed = -1) => {
-      const nodes = VEX.slice(0, n).map((v, i) =>
-        nodeAt(ids[i], v, POS[i].x, POS[i].y, states[ids[i]] ?? 'default'),
+      const nodes = vertices.map((v, i) =>
+        nodeAt(ids[i], v, custom ? undefined : POS[i].x, custom ? undefined : POS[i].y, states[ids[i]] ?? 'default'),
       );
       const edges = dedges.map(([a, b, wt]) => {
         const key = `${a}>${b}`;
@@ -136,24 +140,24 @@ export const dijkstraShortest: AlgorithmMeta = {
           {
             ...graphScene(nodes, edges, `已确定 ${settled.filter(Boolean).length} / ${n} 个顶点`),
             shortestPath: {
-              source: ids[0], complete: anchor === 'done',
-              rows: VEX.slice(0, n).map((vertex, index) => {
+              source: ids[source], complete: anchor === 'done',
+              rows: vertices.map((vertex, index) => {
                 const path: string[] = [];
                 if (Number.isFinite(dist[index])) {
                   for (let at = index; at !== -1; at = pred[at]) path.unshift(ids[at]);
                 }
                 return { id: ids[index], vertex, distance: Number.isFinite(dist[index]) ? dist[index] : null,
-                  predecessor: pred[index] < 0 ? null : VEX[pred[index]], settled: settled[index], changed: index === changed, path };
+                  predecessor: pred[index] < 0 ? null : vertices[pred[index]], settled: settled[index], changed: index === changed, path };
               }),
             },
           },
           {
-            dist: VEX.slice(0, n)
+            dist: vertices
               .map((v, i) => `${v}:${dist[i] === Infinity ? '∞' : dist[i]}`)
               .join(' '),
-            已确定S: VEX.slice(0, n).filter((_, i) => settled[i]).join('') || '空',
-            前驱: VEX.slice(0, n).map((v, i) => `${v}:${pred[i] < 0 ? '—' : VEX[pred[i]]}`).join(' '),
-            本轮顶点: u >= 0 ? VEX[u] : '—',
+            已确定S: vertices.filter((_, i) => settled[i]).join('') || '空',
+            前驱: vertices.map((v, i) => `${v}:${pred[i] < 0 ? '—' : vertices[pred[i]]}`).join(' '),
+            本轮顶点: u >= 0 ? vertices[u] : '—',
             边权: w,
           },
           caption,
@@ -161,9 +165,9 @@ export const dijkstraShortest: AlgorithmMeta = {
       );
     };
 
-    dist[0] = 0;
-    states[ids[0]] = 'active';
-    push('init', '初始化', 'dist[A] = 0，其余为 ∞；集合 S 为空，准备逐轮确定最短路径。', 0, '—', 0);
+    dist[source] = 0;
+    states[ids[source]] = 'active';
+    push('init', '初始化', `dist[${vertices[source]}] = 0，其余为 ∞；集合 S 为空，准备逐轮确定最短路径。`, source, '—', source);
 
     for (let round = 0; round < n; round++) {
       let u = -1;
@@ -175,12 +179,12 @@ export const dijkstraShortest: AlgorithmMeta = {
         }
       }
       if (u === -1) {
-        push('unreachable', '剩余顶点不可达', '未确定顶点的距离均为 ∞，从 A 无法到达它们，结束选点。', -1, '—');
+        push('unreachable', '剩余顶点不可达', `未确定顶点的距离均为 ∞，从 ${vertices[source]} 无法到达它们，结束选点。`, -1, '—');
         break;
       }
       settled[u] = true;
       states[ids[u]] = 'found';
-      push('pick', '选出最小 dist', `未确定顶点中 dist 最小的是 ${VEX[u]} = ${best}，并入集合 S。`, u, '—');
+      push('pick', '选出最小 dist', `未确定顶点中 dist 最小的是 ${vertices[u]} = ${best}，并入集合 S。`, u, '—');
 
       for (const [a, b, w] of dedges) {
         if (a !== u || settled[b]) continue;
@@ -191,13 +195,13 @@ export const dijkstraShortest: AlgorithmMeta = {
           dist[b] = cand;
           pred[b] = a;
           if (!settled[b]) states[ids[b]] = 'active';
-          push('update', '松弛成功', `经 ${VEX[u]} 到 ${VEX[b]}：${dist[u]} + ${w} = ${cand} < ${before}，更新 dist[${VEX[b]}]，前驱改为 ${VEX[u]}。`, u, w, b);
+          push('update', '松弛成功', `经 ${vertices[u]} 到 ${vertices[b]}：${dist[u]} + ${w} = ${cand} < ${before}，更新 dist[${vertices[b]}]，前驱改为 ${vertices[u]}。`, u, w, b);
         } else {
-          push('relax', '松弛失败', `经 ${VEX[u]} 到 ${VEX[b]}：${dist[u]} + ${w} = ${cand} 并不更小，dist[${VEX[b]}] 保持 ${dist[b]}。`, u, w);
+          push('relax', '松弛失败', `经 ${vertices[u]} 到 ${vertices[b]}：${dist[u]} + ${w} = ${cand} 并不更小，dist[${vertices[b]}] 保持 ${dist[b]}。`, u, w);
         }
       }
     }
-    push('done', '完成', `可达顶点的最短距离已确定：${VEX.slice(0, n).map((v, i) => `${v}=${Number.isFinite(dist[i]) ? dist[i] : '∞（不可达）'}`).join('，')}。点击顶点或表中按钮查看路径。`, -1, '—');
+    push('done', '完成', `可达顶点的最短距离已确定：${vertices.map((v, i) => `${v}=${Number.isFinite(dist[i]) ? dist[i] : '∞（不可达）'}`).join('，')}。点击顶点或表中按钮查看路径。`, -1, '—');
     return steps;
   },
 };

@@ -3,6 +3,7 @@ import { pathToFileURL } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
 async function mobileTab(page: Page, name: string) {
+  await expect(page.locator('.mobile-tabs')).toBeAttached();
   const tab = page.locator('.mobile-tabs').getByRole('button', { name, exact: true });
   if (await tab.isVisible()) await tab.click();
 }

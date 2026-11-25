@@ -1,6 +1,6 @@
 import type { AlgorithmMeta, EdgeState, NodeState, TraceStep } from '../../engine/types';
 import { edge, graphScene, makeStep, node, nodeAt } from '../../engine/scene';
-import { GRAPH_SIZE_INPUT } from '../../engine/input';
+import { customGraphInput, decodeCustomGraph } from '../../engine/structure-input';
 
 /** 固定有向无环图：A→B、A→C、B→D、C→D、C→E、D→F、E→F */
 const VEX = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -32,7 +32,8 @@ export const topoSort: AlgorithmMeta = {
   difficulty: '进阶',
   inputHint: '输入顶点个数（3–6），选择无环或有环案例，观察入度、栈和输出序列。',
   defaultInput: [6],
-  input: GRAPH_SIZE_INPUT,
+  input: customGraphInput('directed'),
+  customGraph: 'directed',
   graphCases: [
     { id: 0, label: '无环图', description: '所有顶点都能输出，得到合法拓扑序列。' },
     { id: 1, label: '存在环', description: 'B、C 形成环，栈提前清空；无法得到完整拓扑序列。' },
@@ -107,9 +108,12 @@ export const topoSort: AlgorithmMeta = {
     { q: '对示例图执行本算法，第一个输出的顶点是？', options: ['A', 'B', 'D', 'F'], answer: 0, explain: '初始只有 A 的入度为 0，因此第一个输出 A。' },
   ],
   generate: (input) => {
-    const n = Math.min(Math.max(input[0] || 6, 3), 6);
-    const ids = VEX.slice(0, n).map((v) => `v${v}`);
-    const pairs = (input[1] === 1 ? [...ADJ, [1, 2], [2, 1]] : ADJ).filter(([a, b]) => a < n && b < n);
+    const custom = decodeCustomGraph(input);
+    const n = custom?.labels.length ?? Math.min(Math.max(input[0] || 6, 3), 6);
+    const vertices = custom?.labels ?? VEX.slice(0, n);
+    const ids = vertices.map((v) => `v${v}`);
+    const pairs = custom?.edges ?? (input[1] === 1 ? [...ADJ, [1, 2], [2, 1]] : ADJ)
+      .filter(([a, b]) => a < n && b < n);
     const steps: TraceStep[] = [];
     let k = 0;
     const indeg: number[] = Array(n).fill(0);
@@ -122,8 +126,8 @@ export const topoSort: AlgorithmMeta = {
     for (const v of stack) states[ids[v]] = 'active';
 
     const push = (anchor: string, phase: string, caption: string, cur: string) => {
-      const nodes = VEX.slice(0, n).map((v, i) =>
-        nodeAt(ids[i], v, POS[i].x, POS[i].y, states[ids[i]] ?? 'default', `入度 ${indeg[i]}`),
+      const nodes = vertices.map((v, i) =>
+        nodeAt(ids[i], v, custom ? undefined : POS[i].x, custom ? undefined : POS[i].y, states[ids[i]] ?? 'default', `入度 ${indeg[i]}`),
       );
       const edges = pairs.map(([a, b]) =>
         edge(ids[a], ids[b], undefined, eStates[`${a}>${b}`] ?? 'default', true),
@@ -136,23 +140,23 @@ export const topoSort: AlgorithmMeta = {
           {
             ...graphScene(nodes, edges, `已输出 ${order.length} / ${n} 个顶点`),
             graphTrace: 'topology',
-            output: { label: '拓扑输出序列', values: order.map((v) => VEX[v]) },
+            output: { label: '拓扑输出序列', values: order.map((v) => vertices[v]) },
             aux: {
               label: '入度为 0 的待输出顶点栈',
               layout: 'stack',
               capacity: n,
-              nodes: stack.map((v, index) => node(ids[v], VEX[v],
+              nodes: stack.map((v, index) => node(ids[v], vertices[v],
                 index === stack.length - 1
-                  ? anchor === 'init' || (anchor === 'dec' && cur === VEX[v]) ? 'insert' : 'active'
+                  ? anchor === 'init' || (anchor === 'dec' && cur === vertices[v]) ? 'insert' : 'active'
                   : 'default')),
               pointers: [{ label: 'top', index: stack.length > 0 ? stack.length - 1 : null }],
             },
           },
           {
-            入度: VEX.slice(0, n).map((v, i) => `${v}${indeg[i]}`).join(' '),
-            栈: stack.map((v) => VEX[v]).join(' ') || '空',
-            栈顶: stack.length > 0 ? VEX[stack[stack.length - 1]] : '空',
-            输出序列: order.map((v) => VEX[v]).join(' ') || '空',
+            入度: vertices.map((v, i) => `${v}${indeg[i]}`).join(' '),
+            栈: stack.map((v) => vertices[v]).join(' ') || '空',
+            栈顶: stack.length > 0 ? vertices[stack[stack.length - 1]] : '空',
+            输出序列: order.map((v) => vertices[v]).join(' ') || '空',
             当前顶点: cur,
           },
           caption,
@@ -160,13 +164,15 @@ export const topoSort: AlgorithmMeta = {
       );
     };
 
-    push('init', '统计入度', `统计各顶点入度，入度为 0 的 ${stack.map((v) => VEX[v]).join('、')} 入栈。`, '—');
+    push('init', '统计入度', stack.length
+      ? `统计各顶点入度，入度为 0 的 ${stack.map((v) => vertices[v]).join('、')} 入栈。`
+      : '统计各顶点入度，没有入度为 0 的顶点，栈保持为空。', '—');
 
     while (stack.length > 0) {
       const v = stack.pop() as number;
       states[ids[v]] = 'sorted';
       order.push(v);
-      push('pop', '出栈输出', `${VEX[v]} 入度为 0，出栈并输出，它是第 ${order.length} 个顶点。`, VEX[v]);
+      push('pop', '出栈输出', `${vertices[v]} 入度为 0，出栈并输出，它是第 ${order.length} 个顶点。`, vertices[v]);
 
       for (const [a, b] of pairs) {
         if (a !== v) continue;
@@ -179,15 +185,15 @@ export const topoSort: AlgorithmMeta = {
         push(
           'dec',
           '删边',
-          `${VEX[v]}→${VEX[b]} 的约束已满足，${VEX[b]} 入度减为 ${indeg[b]}${indeg[b] === 0 ? '，入栈等待输出' : '，仍有前置顶点未输出'}。`,
-          VEX[b],
+          `${vertices[v]}→${vertices[b]} 的约束已满足，${vertices[b]} 入度减为 ${indeg[b]}${indeg[b] === 0 ? '，入栈等待输出' : '，仍有前置顶点未输出'}。`,
+          vertices[b],
         );
       }
     }
     if (order.length < n) {
       push('cycle', '检测到环', `栈已空，但仅输出 ${order.length} / ${n} 个顶点；剩余依赖无法消除，图中存在环，无法完成拓扑排序。当前序列只是部分输出。`, '—');
     } else {
-      push('done', '完成', `拓扑序列为 ${order.map((v) => VEX[v]).join(' → ')}；输出数等于 n，图中无回路。`, '—');
+      push('done', '完成', `拓扑序列为 ${order.map((v) => vertices[v]).join(' → ')}；输出数等于 n，图中无回路。`, '—');
     }
     return steps;
   },

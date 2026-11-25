@@ -1,3 +1,4 @@
+import { levelTree, TREE_LEVEL_INPUT } from '../../engine/structure-input';
 import type { AlgorithmMeta, EdgeState, NodeState, SceneEdge, TraceStep } from '../../engine/types';
 import { edge, makeStep, node, treeScene } from '../../engine/scene';
 
@@ -12,12 +13,12 @@ export const inorderTree: AlgorithmMeta = {
   summary: '左 → 根 → 右，先递归到底再回头访问。',
   complexity: { time: 'O(n)', space: 'O(h)', extra: 'h 为树高，递归栈深度' },
   difficulty: '入门',
-  inputHint: '输入 2–15 个整数，按层序建完全二叉树（第 i 个结点的孩子是 2i+1、2i+2）。',
+  inputHint: '按层序输入 1–15 个结点，支持整数或单个英文字母。用 null 表示空孩子，如 A, B, C, null, D。',
   defaultInput: DEFAULT,
-  input: { min: -999, max: 999, minLen: 2, maxLen: 15 },
+  input: TREE_LEVEL_INPUT,
   code: {
     cpp: [
-      { text: '// 按层序数组建完全二叉树', anchor: 'build' },
+      { text: '// 按层序输入建树，null 表示空孩子', anchor: 'build' },
       { text: 'void InOrder(BTNode *b) {' },
       { text: '  if (b == NULL) return;', anchor: 'guard' },
       { text: '  InOrder(b->lchild);', anchor: 'left' },
@@ -26,7 +27,7 @@ export const inorderTree: AlgorithmMeta = {
       { text: '}', anchor: 'ret' },
     ],
     python: [
-      { text: '# 按层序数组建完全二叉树', anchor: 'build' },
+      { text: '# 按层序输入建树，null 表示空孩子', anchor: 'build' },
       { text: 'def inorder(b):' },
       { text: '    if b is None:', anchor: 'guard' },
       { text: '        return' },
@@ -61,20 +62,19 @@ export const inorderTree: AlgorithmMeta = {
     { q: '对二叉排序树做中序遍历的结果是？', options: ['递减序列', '递增序列', '层序序列', '不确定'], answer: 1, explain: '左子树全部小于根、右子树全部大于根，中序「左根右」刚好得到从小到大的序列。' },
   ],
   generate: (input) => {
-    const raw = input.filter((v) => Number.isFinite(v));
-    const vals = (raw.length >= 2 ? raw : DEFAULT).slice(0, 15);
+    const { vals, left, right, height } = levelTree(input.length ? input : DEFAULT);
     const n = vals.length;
     const ids = vals.map((_, i) => `n${i}`);
     const baseEdges: SceneEdge[] = [];
     for (let i = 0; i < n; i++) {
-      if (2 * i + 1 < n) baseEdges.push({ ...edge(ids[i], ids[2 * i + 1]), side: 'left' });
-      if (2 * i + 2 < n) baseEdges.push({ ...edge(ids[i], ids[2 * i + 2]), side: 'right' });
+      if (left[i] >= 0) baseEdges.push({ ...edge(ids[i], ids[left[i]]), side: 'left' });
+      if (right[i] >= 0) baseEdges.push({ ...edge(ids[i], ids[right[i]]), side: 'right' });
     }
     const steps: TraceStep[] = [];
     let k = 0;
     const states: Record<string, NodeState> = {};
     const edgeStates: Record<string, EdgeState> = {};
-    const seq: number[] = [];
+    const seq: (number | string)[] = [];
 
     const push = (anchor: string, phase: string, caption: string, stack: number[]) => {
       const current = stack.at(-1);
@@ -93,7 +93,7 @@ export const inorderTree: AlgorithmMeta = {
           {
             ...treeScene(nodes, edges, `中序序列：${seq.length ? seq.join(' ') : '空'}`),
             subtrees: current === undefined ? undefined : { root: ids[current], active },
-            aux: { label: '中序遍历调用栈', layout: 'call-stack', capacity: Math.floor(Math.log2(n)) + 1,
+            aux: { label: '中序遍历调用栈', layout: 'call-stack', capacity: height,
               nodes: stack.map((index, at) => node(ids[index], callStack[at], at === stack.length - 1 ? 'active' : 'default')),
               pointers: [{ label: 'top', index: stack.length ? stack.length - 1 : null }] },
             output: { label: '中序访问序列', values: seq.map(String) },
@@ -110,7 +110,7 @@ export const inorderTree: AlgorithmMeta = {
       );
     };
 
-    push('build', '建树', `按层序把 ${n} 个结点挂成完全二叉树，根为 ${vals[0]}。`, []);
+    push('build', '建树', `按层序把 ${n} 个结点连接成二叉树，根为 ${vals[0]}。`, []);
 
     const dfs = (i: number, stack: number[]): void => {
       if (i >= n) {
@@ -120,11 +120,11 @@ export const inorderTree: AlgorithmMeta = {
       stack.push(i);
       states[ids[i]] = 'active';
 
-      if (2 * i + 1 < n) {
-        edgeStates[`${ids[i]}>${ids[2 * i + 1]}`] = 'active';
-        push('left', '递归左子树', `进入 ${vals[i]}，中序必须先处理左子树，压栈进入左孩子 ${vals[2 * i + 1]}。`, stack);
-        edgeStates[`${ids[i]}>${ids[2 * i + 1]}`] = 'tree';
-        dfs(2 * i + 1, stack);
+      if (left[i] >= 0) {
+        edgeStates[`${ids[i]}>${ids[left[i]]}`] = 'active';
+        push('left', '递归左子树', `进入 ${vals[i]}，中序必须先处理左子树，压栈进入左孩子 ${vals[left[i]]}。`, stack);
+        edgeStates[`${ids[i]}>${ids[left[i]]}`] = 'tree';
+        dfs(left[i], stack);
       } else {
         push('left', '左子树为空', `${vals[i]} 没有左孩子，左子树这一步立即返回。`, stack);
       }
@@ -133,11 +133,11 @@ export const inorderTree: AlgorithmMeta = {
       seq.push(vals[i]);
       push('visit', '访问根结点', `左子树处理完，回到 ${vals[i]} 并访问它，记入中序序列（第 ${seq.length} 个）。`, stack);
 
-      if (2 * i + 2 < n) {
-        edgeStates[`${ids[i]}>${ids[2 * i + 2]}`] = 'active';
-        push('right', '递归右子树', `根已访问，最后处理右子树，进入 ${vals[i]} 的右孩子 ${vals[2 * i + 2]}。`, stack);
-        edgeStates[`${ids[i]}>${ids[2 * i + 2]}`] = 'tree';
-        dfs(2 * i + 2, stack);
+      if (right[i] >= 0) {
+        edgeStates[`${ids[i]}>${ids[right[i]]}`] = 'active';
+        push('right', '递归右子树', `根已访问，最后处理右子树，进入 ${vals[i]} 的右孩子 ${vals[right[i]]}。`, stack);
+        edgeStates[`${ids[i]}>${ids[right[i]]}`] = 'tree';
+        dfs(right[i], stack);
       } else {
         push('right', '右子树为空', `${vals[i]} 没有右孩子，右子树这一步立即返回。`, stack);
       }
