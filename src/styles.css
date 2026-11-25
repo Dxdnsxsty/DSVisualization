@@ -916,6 +916,16 @@ select:hover { border-color: #d8dbe3; }
   line-height: 1.25;
 }
 .page-intro p { font-size: 14px; color: var(--muted); margin: 0 0 24px; line-height: 1.7; }
+.panel.resume-lesson {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--surface);
+  margin-bottom: 24px;
+}
+.resume-lesson h2 { font-size: 18px; margin: 2px 0 0; }
 .map-section { margin-bottom: 28px; }
 .map-section h2 {
   font-size: 20px;

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { navigate, useRoute } from './engine/router';
 import { usePlayer } from './engine/player';
-import { completedPlayerSlug, schedulePlayerAdvance, syncPlayerRoute } from './engine/player-route';
+import { completedPlayerSlug, saveVisiblePlayerProgress, schedulePlayerAdvance, syncPlayerRoute } from './engine/player-route';
 import { clearScroll } from './engine/scroll';
 import { MapPage } from './components/Placeholder';
 import { markLearned } from './components/Catalog';
@@ -17,6 +17,7 @@ function PlayerEffects({ slug }: { slug: string }) {
   const step = usePlayer((state) => state.step);
   const speed = usePlayer((state) => state.speed);
   const trace = usePlayer((state) => state.trace);
+  useLayoutEffect(() => { saveVisiblePlayerProgress(slug); }, [slug, loadedSlug, step, trace]);
   useEffect(() => schedulePlayerAdvance(slug), [slug, loadedSlug, playing, step, speed, trace]);
   useEffect(() => {
     const completed = completedPlayerSlug(slug);
@@ -50,6 +51,7 @@ export default function App() {
       prevRouteName.current = route.name;
       clearScroll();
       window.scrollTo(0, 0);
+      if (route.name === 'algo') setTab('stage');
     }
   }, [route.name]);
 

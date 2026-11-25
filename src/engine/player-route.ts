@@ -1,4 +1,5 @@
 import { usePlayer } from './player';
+import { saveLessonProgress } from './learning-progress';
 import { parseHash, type AlgorithmReplay } from './router';
 
 function isVisibleAlgorithm(slug: string): boolean {
@@ -30,4 +31,11 @@ export function schedulePlayerAdvance(slug: string): (() => void) | undefined {
 export function completedPlayerSlug(slug: string): string | undefined {
   const { slug: loaded, trace, step } = usePlayer.getState();
   if (slug && slug === loaded && isVisibleAlgorithm(slug) && trace.length > 0 && step === trace.length - 1) return slug;
+}
+
+export function saveVisiblePlayerProgress(slug: string): void {
+  const { slug: loaded, input, trace, step } = usePlayer.getState();
+  if (slug && slug === loaded && trace[step] && isVisibleAlgorithm(slug)) {
+    saveLessonProgress({ slug, input, step });
+  }
 }

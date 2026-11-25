@@ -1,14 +1,28 @@
+import { useState } from 'react';
 import { categories, getAlgorithm } from '../algorithms/registry';
-import { navigate } from '../engine/router';
+import { readLessonProgress } from '../engine/learning-progress';
+import { algorithmReplayPath, navigate } from '../engine/router';
 
 /** 算法地图：按课程章节铺开，是真实功能，不是占位。 */
 export function MapPage() {
+  const [lesson] = useState(readLessonProgress);
   return (
     <div className="page map-page">
       <div className="page-intro">
         <h1>算法地图</h1>
         <p>按《数据结构》课程章节组织。点开任一算法即可分步播放、对照代码、查看变量，并做随堂自测。</p>
       </div>
+      {lesson && (
+        <section className="panel resume-lesson" aria-label="上次学习">
+          <div>
+            <span className="muted">上次学习 · 第 {lesson.step + 1} 步</span>
+            <h2>{lesson.title}</h2>
+          </div>
+          <button type="button" className="primary" onClick={() => navigate(algorithmReplayPath(lesson.slug, lesson))}>
+            继续上次学习
+          </button>
+        </section>
+      )}
       {categories.map((cat) => (
         <section className="map-section" key={cat.id}>
           <h2>{cat.title} {cat.stub && <span className="badge">{cat.stub}</span>}</h2>
