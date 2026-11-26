@@ -83,6 +83,7 @@ test('模拟全屏：全部演示首步、中间步、末步完整适配', async
   for (const algo of algorithms) {
     await page.goto(`/#/algo/${algo.slug}`);
     await expect(page.locator('.col-center > .controls-panel .step-no')).toContainText('步骤 1 /');
+    await expect(page.locator('.col-center > :is(.input-panel, .graph-input) + .stage')).toBeVisible();
     await enter(page);
     const total = algo.generate(algo.defaultInput).length;
     for (const index of [0, Math.floor(total / 2), total - 1]) {

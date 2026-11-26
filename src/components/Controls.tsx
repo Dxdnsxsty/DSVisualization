@@ -187,7 +187,6 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
         </div>}
         <div className="input-hint">
           {error ? <span className="error" role="alert">{error}</span> : <span className="muted">{algo.inputHint}</span>}
-          {!algo.customGraph && <span className="muted">改动数据会重新生成整条步骤序列</span>}
         </div>
       </form>
   );

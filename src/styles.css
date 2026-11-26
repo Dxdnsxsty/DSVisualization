@@ -195,11 +195,16 @@ select:hover { border-color: #d8dbe3; }
 }
 
 /* ── 页面容器 ─────────────────────────────────────────────────── */
-.workbench, .page {
+.page {
   width: 100%;
   max-width: 1560px;
   margin: 0 auto;
   padding: 24px 24px 40px;
+}
+.workbench {
+  --sidebar-top: 76px;
+  width: 100%;
+  padding: 16px clamp(12px, 1.2vw, 24px) 40px;
 }
 .page-head { margin-bottom: 20px; }
 .breadcrumb { font-size: 13px; color: var(--muted); }
@@ -240,12 +245,16 @@ select:hover { border-color: #d8dbe3; }
 /* ── 三栏栅格 ─────────────────────────────────────────────────── */
 .grid {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr) 356px;
+  grid-template-columns: clamp(208px, 15vw, 264px) minmax(0, 1fr) clamp(340px, 24vw, 520px);
   gap: 16px;
   align-items: start;
 }
 .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.col-bottom { margin-top: 16px; }
+.workbench .page-head { grid-area: 1 / 2 / 2 / -1; min-width: 0; margin: 0; }
+.col-left { grid-area: 1 / 1 / 4 / 2; position: sticky; top: var(--sidebar-top); }
+.col-center { grid-area: 2 / 2; }
+.col-right { grid-area: 2 / 3; }
+.col-bottom { grid-area: 3 / 2 / 4 / -1; min-width: 0; }
 
 .lab-grid, .compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .lab-card { min-height: 240px; }
@@ -305,9 +314,9 @@ select:hover { border-color: #d8dbe3; }
 .panel-actions { display: flex; gap: 5px; flex-wrap: wrap; }
 
 /* ── 目录：hover/当前 = 淡蓝底 + 左侧竖条 ─────────────────────── */
-.catalog { padding: 14px; }
+.catalog { display: flex; flex-direction: column; padding: 14px; max-height: calc(100dvh - var(--sidebar-top) - 16px); }
 .catalog-search { width: 100%; margin-bottom: 10px; }
-.cat-scroll { max-height: 62vh; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+.cat-scroll { min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 0 6px; overscroll-behavior-y: contain; }
 .cat-group { margin-bottom: 16px; }
 .cat-title {
   font-size: 15px;
@@ -1020,14 +1029,15 @@ select:hover { border-color: #d8dbe3; }
 /* ── 响应式 ───────────────────────────────────────────────────── */
 @media (max-width: 1280px) {
   .grid { grid-template-columns: 208px minmax(0, 1fr); }
+  .col-left { grid-row-end: 5; }
   .col-right {
-    grid-column: 1 / -1;
+    grid-area: 3 / 2;
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
     align-items: start;
     gap: 16px;
   }
-  .code-panel { min-width: 320px; }
+  .col-bottom { grid-area: 4 / 2; }
 }
 
 @media (max-width: 900px) {
@@ -1040,9 +1050,11 @@ select:hover { border-color: #d8dbe3; }
   .workbench, .page { padding: 16px 16px 32px; }
   .mobile-tabs { display: flex; padding: 12px 16px 0; }
 
-  .grid { grid-template-columns: 1fr; gap: 12px; }
+  .grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .workbench .grid > * { grid-area: auto; }
   .col { gap: 12px; }
-  .col-right { grid-column: auto; display: flex; }
+  .col-left { position: static; }
+  .col-right { display: flex; align-items: stretch; }
 
   .workbench[data-tab='stage'] .col-left,
   .workbench[data-tab='stage'] .col-right,
@@ -1057,7 +1069,7 @@ select:hover { border-color: #d8dbe3; }
   .workbench[data-tab='explain'] .col-left,
   .workbench[data-tab='explain'] .col-right { display: none; }
 
-  .cat-scroll { max-height: none; }
+  .catalog { max-height: none; }
   .explain-body { grid-template-columns: 1fr; }
   .lab-grid, .compare-grid { grid-template-columns: 1fr; }
   .title-row h1 { font-size: 24px; }

@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { algorithms, categories, getAlgorithm } from '../algorithms/registry';
 import { navigate } from '../engine/router';
 import { usePlayer } from '../engine/player';
@@ -43,9 +43,20 @@ export function markLearned(slug: string): void {
 
 export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNavigate?: () => void }) {
   const [query, setQuery] = useState('');
+  const listRef = useRef<HTMLDivElement>(null);
   const snapshot = useSyncExternalStore(subscribeLearned, learnedSnapshot, () => '[]');
   const learned = new Set(parseLearned(snapshot));
   const q = query.trim().toLowerCase();
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const current = list?.querySelector('[aria-current="page"]');
+    if (!list || !current || list.scrollHeight <= list.clientHeight) return;
+    const viewport = list.getBoundingClientRect();
+    const item = current.getBoundingClientRect();
+    if (item.top < viewport.top) list.scrollTop += item.top - viewport.top;
+    else if (item.bottom > viewport.bottom) list.scrollTop += item.bottom - viewport.bottom;
+  }, [currentSlug, q]);
 
   return (
     <nav className="panel catalog" aria-label="课程章节目录">
@@ -57,7 +68,7 @@ export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNa
         placeholder="搜索算法 / 章节"
         aria-label="搜索算法"
       />
-      <div className="cat-scroll">
+      <div className="cat-scroll" ref={listRef}>
         {categories.map((cat) => {
           const items = cat.slugs.map(getAlgorithm).filter((a) => !!a);
           const visible = items.filter((a) => matchesAlgorithm(a, cat.title, q));
@@ -72,6 +83,7 @@ export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNa
                 <button
                   key={a.slug}
                   className={'cat-item' + (a.slug === currentSlug ? ' current' : '')}
+                  aria-current={a.slug === currentSlug ? 'page' : undefined}
                   onClick={() => {
                     // 先同步生成新算法的步骤再跳转：否则路由切换的瞬间会渲染空态，
                     // 页面高度塌陷会把滚动位置夹回顶部，用户每次都得重新往下翻。
