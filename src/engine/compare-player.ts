@@ -10,8 +10,9 @@ export type ComparisonAction =
   | { type: 'seek'; side: 0 | 1; step: number }
   | { type: 'speed'; speed: number };
 
-export function createComparisonPlayback(lengths: [number, number]): ComparisonPlayback {
-  return { steps: [0, 0], last: [Math.max(0, lengths[0] - 1), Math.max(0, lengths[1] - 1)], playing: false, speed: 1 };
+export function createComparisonPlayback(lengths: [number, number], steps: [number, number] = [0, 0]): ComparisonPlayback {
+  const last: [number, number] = [Math.max(0, lengths[0] - 1), Math.max(0, lengths[1] - 1)];
+  return { steps: [Math.min(steps[0], last[0]), Math.min(steps[1], last[1])], last, playing: false, speed: 1 };
 }
 
 export function comparisonFinished(state: ComparisonPlayback): boolean {

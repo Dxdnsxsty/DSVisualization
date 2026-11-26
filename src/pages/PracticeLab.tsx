@@ -2,11 +2,26 @@ import { useMemo, useState } from 'react';
 import { algorithms, getAlgorithm } from '../algorithms/registry';
 import { Stage } from '../components/Stage';
 import { decodeMatchInput } from '../engine/input';
-import { practiceQuestions } from '../engine/practice';
+import { customPracticeQuestions, practiceQuestions, supportsCustomPractice } from '../engine/practice';
 import { practiceQuestionId, readPracticeMistakes, savePracticeMistakes, type PracticeMistake } from '../engine/practice-review';
-import { algorithmReplayPath, navigate } from '../engine/router';
+import { algorithmReplayPath, navigate, type ExerciseReplay } from '../engine/router';
+import { decodeCustomGraph, formatTreeInput } from '../engine/structure-input';
 
-export function PracticeLab() {
+function describeInput(algo: NonNullable<ReturnType<typeof getAlgorithm>>, input: number[]): string {
+  if (algo.input?.format === 'string-match') {
+    const [main, pattern] = decodeMatchInput(input);
+    return `主串 ${main}，模式串 ${pattern}`;
+  }
+  if (algo.input?.format === 'tree-level') return formatTreeInput(input);
+  if (algo.slug === 'graph/dijkstra') {
+    const graph = decodeCustomGraph(input);
+    if (graph) return `顶点 ${graph.labels.join('、')}，起点 ${graph.labels[graph.source]}，边 ${graph.edges.map(([from, to, weight]) =>
+      `${graph.labels[from]}→${graph.labels[to]} (${weight})`).join('、') || '无'}`;
+  }
+  return input.join(', ');
+}
+
+export function PracticeLab({ exercise }: { exercise?: ExerciseReplay }) {
   const [slug, setSlug] = useState('stack/seq-stack');
   const [round, setRound] = useState(0);
   const [answer, setAnswer] = useState<string | null>(null);
@@ -14,12 +29,15 @@ export function PracticeLab() {
   const [storageFailed, setStorageFailed] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [review, setReview] = useState<PracticeMistake>();
-  const algo = getAlgorithm(slug) ?? algorithms[0];
-  const questions = useMemo(() => practiceQuestions(algo), [algo]);
+  const exerciseAlgo = exercise && supportsCustomPractice(exercise.slug) ? getAlgorithm(exercise.slug) : undefined;
+  const algo = exerciseAlgo ?? getAlgorithm(slug) ?? algorithms[0];
+  const questions = useMemo(() => exercise && exerciseAlgo
+    ? customPracticeQuestions(exerciseAlgo, exercise.input)
+    : practiceQuestions(algo), [algo, exercise, exerciseAlgo]);
+  const first = exerciseAlgo && exercise ? questions.findIndex(({ step }) => step >= exercise.step) : 0;
   const taskAlgo = reviewing && review ? getAlgorithm(review.slug) ?? algo : algo;
-  const task = reviewing ? review?.question : questions.length ? questions[round % questions.length] : undefined;
-  const matchInput = task && taskAlgo.input?.format === 'string-match' ? decodeMatchInput(task.input) : undefined;
-  const inputLabel = matchInput ? `主串 ${matchInput[0]}，模式串 ${matchInput[1]}` : task?.input.join(', ');
+  const task = reviewing ? review?.question : questions.length ? questions[(round + Math.max(0, first)) % questions.length] : undefined;
+  const inputLabel = task && describeInput(taskAlgo, task.input);
   const mastered = reviewing && !!task && answer === task.answer;
 
   const chooseAlgorithm = (value: string) => {
@@ -73,7 +91,11 @@ export function PracticeLab() {
           <button type="button" aria-pressed={reviewing} onClick={() => chooseMode(true)}>只练错题（{mistakes.length}）</button>
         </div>
         {storageFailed && <p className="muted">当前浏览器无法保存错题，离开此页后本次改动可能丢失。</p>}
-        {!reviewing && <div className="panel-head">
+        {!reviewing && exerciseAlgo && <div className="panel-head">
+          <span>{exerciseAlgo.title} · 当前数据练习</span>
+          <button type="button" className="mini" onClick={() => navigate('lab')}>返回预设题库</button>
+        </div>}
+        {!reviewing && !exerciseAlgo && <div className="panel-head">
           <label htmlFor="practice-algorithm">选择算法</label>
           <select id="practice-algorithm" value={slug} onChange={(event) => chooseAlgorithm(event.target.value)}>
             {algorithms.map((item) => <option key={item.slug} value={item.slug}>{item.title}</option>)}
@@ -100,7 +122,8 @@ export function PracticeLab() {
               从第 {task.step + 1} 步打开动画
             </button>}
           </p>
-        </> : <p className="muted">{reviewing ? '没有待复习的错题。' : '这个算法暂时没有可用的练习题。'}</p>}
+        </> : <p className="muted">{reviewing ? '没有待复习的错题。' :
+          exerciseAlgo ? '这组数据没有可出题的步骤。可以换一组输入或返回预设题库。' : '这个算法暂时没有可用的练习题。'}</p>}
       </section>
     </main>
   );

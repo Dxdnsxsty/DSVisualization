@@ -6,12 +6,17 @@ import { ShareReplay } from './ShareReplay';
 import type { AlgorithmMeta } from '../engine/types';
 import { decodeMatchInput, DEFAULT_INPUT, GRAPH_SIZE_INPUT, parseInputText, parseMatchInput, randomInput, validateInput } from '../engine/input';
 import { levelTree } from '../engine/structure-input';
+import { hasCustomPracticeQuestion, supportsCustomPractice } from '../engine/practice';
+import { exerciseReplayPath, navigate } from '../engine/router';
 
 export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
   const p = usePlayer(useShallow(({ trace, step, playing, speed, setStep, prev, next, toggle, setSpeed }) =>
     ({ trace, step, playing, speed, setStep, prev, next, toggle, setSpeed })));
   const cur = p.trace[p.step];
   const total = p.trace.length;
+  const slug = usePlayer((state) => state.slug);
+  const showPractice = !fullscreen && supportsCustomPractice(slug);
+  const canPractice = useMemo(() => showPractice && hasCustomPracticeQuestion(slug, p.trace), [showPractice, slug, p.trace]);
 
   // 阶段去重：同名阶段只保留首次出现的步骤，点击即可跳转
   const phases = useMemo(() => {
@@ -63,6 +68,15 @@ export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
         ))}
       </div>}
       {!fullscreen && <ShareReplay />}
+      {showPractice && cur && <div className="practice-from-demo">
+        <button type="button" className="mini" disabled={!canPractice} onClick={() => {
+        const { slug, input, step } = usePlayer.getState();
+        navigate(exerciseReplayPath({ slug, input, step }));
+        }}>用这组数据练习</button>
+        {!canPractice && <span className="muted">{slug === 'tree/inorder'
+          ? '至少需要两个不同的结点值，才能生成选择题。'
+          : '这张图没有可出题的选点或松弛步骤。'}</span>}
+      </div>}
     </div>
   );
 }
@@ -110,7 +124,7 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
     if (graphSize) {
       const presetError = validateInput(GRAPH_SIZE_INPUT, nums);
       if (nums.length !== 1 || presetError) { setError('请输入一个 3–6 的顶点数量'); return; }
-      nums.push(preset[1] ?? 0);
+      if (algo.graphCases) nums.push(preset[1] ?? 0);
     }
     const err = validateInput(spec, nums);
     if (err) { setError(err); return; }
@@ -119,7 +133,7 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
 
   const random = () => {
     const arr = randomInput(spec);
-    if (graphSize) arr.push(preset[1] ?? 0);
+    if (graphSize && algo.graphCases) arr.push(preset[1] ?? 0);
     // 随机出来的数据若自身不合法，说明规则写错了：明确报错，而不是静默回退成默认串
     const err = validateInput(spec, arr);
     if (err) { setError(`随机生成失败：${err}`); return; }

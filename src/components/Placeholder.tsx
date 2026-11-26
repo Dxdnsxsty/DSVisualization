@@ -1,11 +1,20 @@
 import { useState } from 'react';
 import { categories, getAlgorithm } from '../algorithms/registry';
+import { matchesAlgorithm } from '../engine/algorithm-search';
+import type { AlgorithmMeta } from '../engine/types';
 import { readLessonProgress } from '../engine/learning-progress';
 import { algorithmReplayPath, navigate } from '../engine/router';
 
 /** 算法地图：按课程章节铺开，是真实功能，不是占位。 */
 export function MapPage() {
   const [lesson] = useState(readLessonProgress);
+  const [query, setQuery] = useState('');
+  const groups = categories.map((category) => ({
+    category,
+    visible: category.slugs.map(getAlgorithm).filter((algo): algo is AlgorithmMeta =>
+      !!algo && matchesAlgorithm(algo, category.title, query)),
+  }));
+  const count = groups.reduce((total, { visible }) => total + visible.length, 0);
   return (
     <div className="page map-page">
       <div className="page-intro">
@@ -23,15 +32,19 @@ export function MapPage() {
           </button>
         </section>
       )}
-      {categories.map((cat) => (
+      <div className="map-search">
+        <label htmlFor="map-search">搜索算法</label>
+        <input id="map-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+          placeholder="算法名、缩写或章节，如 BFS" />
+        {query.trim() && <span className="muted" role="status">{count ? `找到 ${count} 个算法` : '未找到匹配的算法'}</span>}
+      </div>
+      {groups.filter(({ category, visible }) => visible.length || (!query.trim() && category.stub)).map(({ category: cat, visible }) => (
         <section className="map-section" key={cat.id}>
           <h2>{cat.title} {cat.stub && <span className="badge">{cat.stub}</span>}</h2>
           <div className="card-grid">
-            {cat.slugs.map((slug) => {
-              const a = getAlgorithm(slug);
-              if (!a) return null;
+            {visible.map((a) => {
               return (
-                <button className="algo-card" key={slug} onClick={() => navigate('algo/' + slug)}>
+                <button className="algo-card" key={a.slug} onClick={() => navigate('algo/' + a.slug)}>
                   <span className="card-title">{a.title}</span>
                   <span className="card-summary">{a.summary}</span>
                   <span className="card-meta">{a.complexity.time} · {a.difficulty}</span>

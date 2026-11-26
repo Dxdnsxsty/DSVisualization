@@ -61,7 +61,7 @@ export const TREE_LEVEL_INPUT: InputSpec = {
   random: () => Array.from({ length: 2 + Math.floor(Math.random() * 14) }, () => Math.floor(Math.random() * 1999) - 999),
 };
 
-export function parseCustomGraph(vertices: string, start: string | null, edges: string, weighted: boolean): number[] {
+export function parseCustomGraph(vertices: string, start: string | null, edges: string, weighted: boolean, allowNegative = false): number[] {
   const labels = tokens(vertices.toUpperCase()).map(letterIndex);
   // 拓扑排序不选起点，保留此字段以沿用现有回放格式。
   const source = start === null ? 0 : labels.indexOf(letterIndex(start.trim().toUpperCase()));
@@ -71,8 +71,8 @@ export function parseCustomGraph(vertices: string, start: string | null, edges: 
     if (fields.length !== (weighted ? 3 : 2)) throw new Error(weighted ? '每行填写起点、终点和权重，如 A B 4' : '每行填写边的两个端点，如 A B');
     const endpoints = fields.slice(0, 2).map((field) => labels.indexOf(letterIndex(field)));
     const weight = weighted ? Number(fields[2]) : 1;
-    if (weighted && (!/^\d+$/.test(fields[2]) || weight > 999)) {
-      throw new Error('Dijkstra 的边权须为 0–999 的整数');
+    if (weighted && (!/^-?\d+$/.test(fields[2]) || weight < (allowNegative ? -999 : 0) || weight > 999)) {
+      throw new Error(allowNegative ? 'Bellman-Ford 的边权须为 -999 至 999 的整数' : 'Dijkstra 的边权须为 0–999 的整数');
     }
     encoded.push(...endpoints, weight);
   }
@@ -88,11 +88,12 @@ export function decodeCustomGraph(input: number[]) {
   return { labels, source, edges };
 }
 
-export function customGraphInput(kind: CustomGraphKind): InputSpec {
+export function customGraphInput(kind: CustomGraphKind, preset: InputSpec = GRAPH_SIZE_INPUT): InputSpec {
+  const signed = kind === 'weighted-signed';
   return {
-    ...GRAPH_SIZE_INPUT, min: -1, max: 999, maxLen: 99,
+    ...preset, format: 'graph-size', min: signed ? -999 : -1, max: 999, maxLen: 99,
     check: (input) => {
-      if (input[0] !== CUSTOM_GRAPH) return validateInput(GRAPH_SIZE_INPUT, input);
+      if (input[0] !== CUSTOM_GRAPH) return validateInput(preset, input);
       const [, n, source] = input;
       if (n < 1 || n > 6 || input.length < 3 + n) return '请输入 1–6 个顶点';
       const labels = input.slice(3, 3 + n);
@@ -103,8 +104,8 @@ export function customGraphInput(kind: CustomGraphKind): InputSpec {
       for (const [from, to, weight] of decodeCustomGraph(input)!.edges) {
         if (from < 0 || from >= n || to < 0 || to >= n) return '边的端点须在顶点列表中';
         if (from === to) return '暂不支持自环';
-        if (weight < 0) return 'Dijkstra 的边权须为 0–999 的整数';
-        if (kind !== 'weighted' && weight !== 1) return '当前算法的边不需要权重';
+        if (kind === 'weighted' && weight < 0) return 'Dijkstra 的边权须为 0–999 的整数';
+        if (kind !== 'weighted' && !signed && weight !== 1) return '当前算法的边不需要权重';
         const key = kind === 'undirected' ? `${Math.min(from, to)}-${Math.max(from, to)}` : `${from}>${to}`;
         if (seen.has(key)) return '边不能重复';
         seen.add(key);

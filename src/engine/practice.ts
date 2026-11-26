@@ -1,5 +1,5 @@
 import type { AlgorithmMeta, TraceStep } from './types';
-import { parseMatchInput } from './input';
+import { DEFAULT_INPUT, parseMatchInput, validateInput } from './input';
 
 export interface PracticeQuestion {
   input: number[];
@@ -9,6 +9,67 @@ export interface PracticeQuestion {
   prompt: string;
   answer: string;
   choices: string[];
+  custom?: true;
+}
+
+export function supportsCustomPractice(slug: string): boolean {
+  return slug === 'graph/dijkstra' || slug === 'tree/inorder';
+}
+
+function customPrompt(slug: string, before: TraceStep, after: TraceStep) {
+  if (slug === 'tree/inorder' && after.anchor === 'visit') {
+    const value = after.scene.output?.values.at(-1);
+    if (value !== undefined) return {
+      prompt: '中序遍历下一个访问的结点值是什么？', answer: value,
+      alternatives: before.scene.nodes.map((node) => node.value),
+    };
+  }
+  const rows = before.scene.shortestPath?.rows;
+  const nextRows = after.scene.shortestPath?.rows;
+  if (slug !== 'graph/dijkstra' || !rows || !nextRows) return;
+  if (after.anchor === 'pick') {
+    const chosen = nextRows.find((row, index) => row.settled && !rows[index].settled);
+    if (chosen) return {
+      prompt: '按距离从小到大，下一个确定的是哪个顶点？距离相同则按顶点输入顺序选取。',
+      answer: chosen.vertex, alternatives: rows.filter((row) => !row.settled).map((row) => row.vertex),
+    };
+  }
+  if (after.anchor === 'update') {
+    const index = nextRows.findIndex((row) => row.changed);
+    const changed = nextRows[index];
+    const source = rows.find((row) => row.vertex === after.vars.本轮顶点);
+    if (changed?.distance == null || source?.distance == null) return;
+    return {
+      prompt: `检查边 ${source.vertex} → ${changed.vertex}（权重 ${after.vars.边权}）后，${changed.vertex} 的距离是多少？`,
+      answer: String(changed.distance),
+      alternatives: [String(rows[index].distance ?? '∞'), String(source.distance), String(after.vars.边权)],
+    };
+  }
+}
+
+export function hasCustomPracticeQuestion(slug: string, trace: TraceStep[]): boolean {
+  return supportsCustomPractice(slug) && trace.some((before, step) => {
+    const after = trace[step + 1];
+    const item = after && customPrompt(slug, before, after);
+    return item?.alternatives.some((choice) => choice !== item.answer) ?? false;
+  });
+}
+
+export function customPracticeQuestions(algo: AlgorithmMeta, input: number[]): PracticeQuestion[] {
+  if (!supportsCustomPractice(algo.slug) || validateInput(algo.input ?? DEFAULT_INPUT, input)) return [];
+  const trace = algo.generate(input);
+  const questions: PracticeQuestion[] = [];
+  for (let step = 0; step + 1 < trace.length; step++) {
+    const before = trace[step];
+    const after = trace[step + 1];
+    const item = customPrompt(algo.slug, before, after);
+    if (!item) continue;
+    const choices = [...new Set(item.alternatives)].filter((choice) => choice !== item.answer).slice(0, 2);
+    if (!choices.length) continue;
+    choices.splice(step % (choices.length + 1), 0, item.answer);
+    questions.push({ input, step, before, after, prompt: item.prompt, answer: item.answer, choices, custom: true });
+  }
+  return questions;
 }
 
 const examples: Record<string, number[][]> = {

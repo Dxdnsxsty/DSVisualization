@@ -94,7 +94,7 @@ button.mini.active {
   font-weight: 600;
 }
 
-input[type='text'], input:not([type]) {
+input[type='text'], input[type='search'], input:not([type]) {
   border: 1px solid var(--border);
   border-radius: var(--radius-ctl);
   padding: 6px 10px;
@@ -103,7 +103,7 @@ input[type='text'], input:not([type]) {
   background: var(--bg);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-input[type='text']:focus, input:not([type]):focus {
+input[type='text']:focus, input[type='search']:focus, input:not([type]):focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(34, 94, 252, 0.1);
@@ -923,6 +923,10 @@ select:hover { border-color: #d8dbe3; }
   line-height: 1.25;
 }
 .page-intro p { font-size: 14px; color: var(--muted); margin: 0 0 24px; line-height: 1.7; }
+.map-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
+.map-search label { font-weight: 600; }
+.map-search input { flex: 0 1 300px; min-width: 0; max-width: 100%; }
+.practice-from-demo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .panel.resume-lesson {
   display: flex;
   align-items: center;

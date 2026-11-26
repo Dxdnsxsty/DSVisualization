@@ -135,6 +135,7 @@ export default function App() {
             </div>
             <AlgorithmPage
               slug={slug}
+              comparison={route.comparison}
               stageRef={stageRef}
               onFullscreen={toggleFullscreen}
               fullscreenError={fullscreenError}
@@ -144,8 +145,8 @@ export default function App() {
           </>
         )}
         {route.name === 'map' && <MapPage />}
-        {route.name === 'compare' && <ComparePage />}
-        {route.name === 'lab' && <PracticeLab />}
+        {route.name === 'compare' && <ComparePage key={JSON.stringify(route.comparison ?? null)} comparison={route.comparison} />}
+        {route.name === 'lab' && <PracticeLab key={JSON.stringify(route.exercise ?? null)} exercise={route.exercise} />}
       </Suspense>
 
       <footer className="footer">

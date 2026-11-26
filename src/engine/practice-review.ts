@@ -1,5 +1,5 @@
 import { getAlgorithm } from '../algorithms/registry';
-import { practiceQuestions, type PracticeQuestion } from './practice';
+import { customPracticeQuestions, practiceQuestions, type PracticeQuestion } from './practice';
 
 const KEY = 'dsv-practice-mistakes';
 
@@ -7,6 +7,7 @@ interface SavedMistake {
   id: string;
   slug: string;
   choice: string;
+  input?: number[];
 }
 
 export interface PracticeMistake extends SavedMistake {
@@ -27,13 +28,15 @@ export function readPracticeMistakes(): PracticeMistake[] {
 
     for (const entry of raw) {
       if (!entry || typeof entry.id !== 'string' || typeof entry.slug !== 'string' || typeof entry.choice !== 'string') continue;
-      const { id, slug, choice } = entry as SavedMistake;
+      const { id, slug, choice, input } = entry as SavedMistake;
       const algo = getAlgorithm(slug);
-      if (!algo) continue;
-      if (!questions.has(slug)) {
-        questions.set(slug, new Map(practiceQuestions(algo).map((question) => [practiceQuestionId(slug, question), question])));
+      if (!algo || (input !== undefined && (!Array.isArray(input) || input.length > 99 || !input.every(Number.isSafeInteger)))) continue;
+      const key = JSON.stringify([slug, input]);
+      if (!questions.has(key)) {
+        const pool = input === undefined ? practiceQuestions(algo) : customPracticeQuestions(algo, input);
+        questions.set(key, new Map(pool.map((question) => [practiceQuestionId(slug, question), question])));
       }
-      const question = questions.get(slug)?.get(id);
+      const question = questions.get(key)?.get(id);
       if (question && choice !== question.answer && question.choices.includes(choice)) {
         mistakes.set(id, { id, slug, choice, question });
       }
@@ -46,7 +49,9 @@ export function readPracticeMistakes(): PracticeMistake[] {
 
 export function savePracticeMistakes(mistakes: PracticeMistake[]): boolean {
   try {
-    localStorage.setItem(KEY, JSON.stringify(mistakes.map(({ id, slug, choice }) => ({ id, slug, choice }))));
+    localStorage.setItem(KEY, JSON.stringify(mistakes.map(({ id, slug, choice, question }) => ({
+      id, slug, choice, input: question.custom ? question.input : undefined,
+    }))));
     return true;
   } catch {
     return false;

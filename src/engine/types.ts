@@ -168,4 +168,4 @@ export interface AlgorithmMeta {
   generate: (input: number[]) => TraceStep[];
 }
 
-export type CustomGraphKind = 'undirected' | 'directed' | 'weighted';
+export type CustomGraphKind = 'undirected' | 'directed' | 'weighted' | 'weighted-signed';

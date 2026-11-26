@@ -3,6 +3,7 @@ import { algorithms, categories, getAlgorithm } from '../algorithms/registry';
 import { navigate } from '../engine/router';
 import { usePlayer } from '../engine/player';
 import { rememberScroll } from '../engine/scroll';
+import { matchesAlgorithm } from '../engine/algorithm-search';
 
 const KEY = 'dsv-learned';
 const LEARNED_CHANGE = 'dsv-learned-change';
@@ -59,9 +60,7 @@ export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNa
       <div className="cat-scroll">
         {categories.map((cat) => {
           const items = cat.slugs.map(getAlgorithm).filter((a) => !!a);
-          const visible = items.filter((a) =>
-            !q || cat.title.toLowerCase().includes(q) || a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q),
-          );
+          const visible = items.filter((a) => matchesAlgorithm(a, cat.title, q));
           if (q && visible.length === 0 && !cat.title.toLowerCase().includes(q)) return null;
           return (
             <div className="cat-group" key={cat.id}>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useState } from 'react';
 import { algorithms, getAlgorithm } from '../algorithms/registry';
 import { Stage } from '../components/Stage';
 import type { AlgorithmMeta, TraceStep } from '../engine/types';
-import { navigate } from '../engine/router';
+import { algorithmReplayPath, comparisonReplayPath, navigate, type ComparisonReplay } from '../engine/router';
 import { DEFAULT_INPUT, parseInputText, validateInput } from '../engine/input';
 import { comparisonFinished, comparisonReducer, createComparisonPlayback } from '../engine/compare-player';
 
@@ -16,12 +16,14 @@ function comparisonError(input: number[], pair: AlgorithmMeta[]): string | null 
   return null;
 }
 
-function Pane({ algo, trace, step, onSeek }: { algo: AlgorithmMeta; trace: TraceStep[]; step: number; onSeek: (step: number) => void }) {
+function Pane({ algo, trace, step, onLearn, onSeek }: {
+  algo: AlgorithmMeta; trace: TraceStep[]; step: number; onLearn: () => void; onSeek: (step: number) => void;
+}) {
   const cur = trace[step];
   const final = trace[trace.length - 1];
   return (
     <section className="panel compare-pane">
-      <div className="panel-head"><span>{algo.title}</span><button className="mini" onClick={() => navigate(`algo/${algo.slug}`)}>单独学习</button></div>
+      <div className="panel-head"><span>{algo.title}</span><button className="mini" onClick={onLearn}>单独学习</button></div>
       <Stage scene={cur.scene} />
       <div className="compare-caption">步骤 {step + 1} / {trace.length} · {cur.caption}</div>
       <input className="progress" type="range" min={0} max={trace.length - 1} value={step} onChange={(e) => onSeek(Number(e.target.value))} aria-label={`${algo.title}播放进度`} />
@@ -39,10 +41,18 @@ function Pane({ algo, trace, step, onSeek }: { algo: AlgorithmMeta; trace: Trace
   );
 }
 
-function Comparison({ left, right, input }: { left: AlgorithmMeta; right: AlgorithmMeta; input: number[] }) {
+function Comparison({ left, right, input, initialSteps }: {
+  left: AlgorithmMeta; right: AlgorithmMeta; input: number[]; initialSteps?: [number, number];
+}) {
   const traces = useMemo(() => [left.generate([...input]), right.generate([...input])] as const, [left, right, input]);
-  const [state, dispatch] = useReducer(comparisonReducer, [traces[0].length, traces[1].length], createComparisonPlayback);
+  const [state, dispatch] = useReducer(comparisonReducer, [traces[0].length, traces[1].length] as [number, number],
+    (lengths) => createComparisonPlayback(lengths, initialSteps));
   const finished = comparisonFinished(state);
+  const learn = (side: 0 | 1) => {
+    const comparison = { left: left.slug, right: right.slug, input, steps: state.steps };
+    window.history.replaceState(window.history.state, '', '#/' + comparisonReplayPath(comparison));
+    navigate(algorithmReplayPath(side === 0 ? left.slug : right.slug, { input, step: state.steps[side] }, comparison));
+  };
 
   useEffect(() => {
     if (!state.playing) return;
@@ -63,17 +73,21 @@ function Comparison({ left, right, input }: { left: AlgorithmMeta; right: Algori
     </section>
     <p className="muted">每次两侧各推进一个演示步骤，先结束的一侧停在终态。拖动任一侧进度会暂停播放；同步步数不代表实际运行速度。</p>
     <div className="compare-grid">
-      <Pane algo={left} trace={traces[0]} step={state.steps[0]} onSeek={(step) => dispatch({ type: 'seek', side: 0, step })} />
-      <Pane algo={right} trace={traces[1]} step={state.steps[1]} onSeek={(step) => dispatch({ type: 'seek', side: 1, step })} />
+      <Pane algo={left} trace={traces[0]} step={state.steps[0]} onLearn={() => learn(0)} onSeek={(step) => dispatch({ type: 'seek', side: 0, step })} />
+      <Pane algo={right} trace={traces[1]} step={state.steps[1]} onLearn={() => learn(1)} onSeek={(step) => dispatch({ type: 'seek', side: 1, step })} />
     </div>
   </>;
 }
 
-export function ComparePage() {
-  const [left, setLeft] = useState('sort/insert-sort');
-  const [right, setRight] = useState('sort/quick-sort');
-  const [raw, setRaw] = useState('49, 38, 65, 97, 76, 13, 27');
-  const [input, setInput] = useState([49, 38, 65, 97, 76, 13, 27]);
+export function ComparePage({ comparison }: { comparison?: ComparisonReplay }) {
+  const savedLeft = SORTS.find((algo) => algo.slug === comparison?.left);
+  const savedRight = SORTS.find((algo) => algo.slug === comparison?.right);
+  const saved = comparison && savedLeft && savedRight && !comparisonError(comparison.input, [savedLeft, savedRight]) ? comparison : undefined;
+  const initialInput = saved?.input ?? [49, 38, 65, 97, 76, 13, 27];
+  const [left, setLeft] = useState(saved?.left ?? 'sort/insert-sort');
+  const [right, setRight] = useState(saved?.right ?? 'sort/quick-sort');
+  const [raw, setRaw] = useState(initialInput.join(', '));
+  const [input, setInput] = useState(initialInput);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const a = getAlgorithm(left) ?? SORTS[0];
@@ -110,7 +124,7 @@ export function ComparePage() {
       </p>
       <p className="muted">计数规则：只统计关键字比较和数据元素写入；累计写入包含原数组及辅助数组/桶，一次交换计 2 次写入，相同值写回也计数。临时变量、边界判断、数组初始化、清空和演示快照不计。基数排序按位分桶，不比较关键字大小，因此比较次数为 0；移位与填坑不计交换。操作次数和演示步骤数均不代表运行耗时。</p>
       {/* 成功应用数据或切换算法时，卸载旧播放器以取消计时并重置两侧。 */}
-      <Comparison key={revision} left={a} right={b} input={input} />
+      <Comparison key={revision} left={a} right={b} input={input} initialSteps={revision === 0 ? saved?.steps : undefined} />
     </main>
   );
 }

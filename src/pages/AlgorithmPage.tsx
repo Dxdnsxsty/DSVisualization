@@ -2,6 +2,7 @@ import { useLayoutEffect, type RefObject } from 'react';
 import { getAlgorithm } from '../algorithms/registry';
 import { usePlayer } from '../engine/player';
 import { restoreScroll } from '../engine/scroll';
+import { comparisonReplayPath, navigate, type ComparisonReplay } from '../engine/router';
 import { Stage } from '../components/Stage';
 import { Controls, InputBar } from '../components/Controls';
 import { CodePane, VarPane } from '../components/CodePane';
@@ -11,6 +12,7 @@ import { NotFound } from '../components/Placeholder';
 
 interface Props {
   slug: string;
+  comparison?: ComparisonReplay;
   stageRef: RefObject<HTMLDivElement>;
   onFullscreen: () => void;
   fullscreenError: string;
@@ -28,7 +30,7 @@ function PlayerVariables() {
   return step ? <VarPane step={step} /> : null;
 }
 
-export function AlgorithmPage({ slug, stageRef, onFullscreen, fullscreenError, mobileTab, onNavigate }: Props) {
+export function AlgorithmPage({ slug, comparison, stageRef, onFullscreen, fullscreenError, mobileTab, onNavigate }: Props) {
   const algo = getAlgorithm(slug);
 
   // 绘制前恢复滚动位置：配合 Catalog 里的 rememberScroll，连点算法时页面不跳回顶部
@@ -47,6 +49,7 @@ export function AlgorithmPage({ slug, stageRef, onFullscreen, fullscreenError, m
           <span className="tag">空间 {algo.complexity.space}</span>
           {algo.complexity.extra && <span className="tag">{algo.complexity.extra}</span>}
           <span className="tag soft">{algo.difficulty}</span>
+          {comparison && <button type="button" className="mini" onClick={() => navigate(comparisonReplayPath(comparison))}>返回对比</button>}
         </div>
         <p className="summary">{algo.summary}</p>
       </header>

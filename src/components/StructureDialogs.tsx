@@ -53,7 +53,8 @@ export function CustomGraphDialog({ algo, input, regenerate, onClose }: {
   regenerate: (input: number[]) => void;
   onClose: () => void;
 }) {
-  const weighted = algo.customGraph === 'weighted';
+  const signed = algo.customGraph === 'weighted-signed';
+  const weighted = signed || algo.customGraph === 'weighted';
   const hasSource = algo.customGraph !== 'directed';
   const directed = algo.customGraph !== 'undirected';
   const graph = decodeCustomGraph(input);
@@ -62,11 +63,11 @@ export function CustomGraphDialog({ algo, input, regenerate, onClose }: {
   const [edges, setEdges] = useState(() => graph
     ? graph.edges.map(([from, to, weight]) =>
       [graph.labels[from], graph.labels[to], ...(weighted ? [weight] : [])].join(' ')).join('\n')
-    : weighted ? 'A B 4\nB C 2' : 'A B\nB C');
+    : signed ? 'A B 4\nB C -2' : weighted ? 'A B 4\nB C 2' : 'A B\nB C');
   let parsed: number[] | undefined;
   let error: string | null;
   try {
-    parsed = parseCustomGraph(vertices, hasSource ? start : null, edges, weighted);
+    parsed = parseCustomGraph(vertices, hasSource ? start : null, edges, weighted, signed);
     error = validateInput(algo.input ?? DEFAULT_INPUT, parsed);
   } catch (failure) {
     error = failure instanceof Error ? failure.message : '无法读取图结构';
@@ -95,7 +96,7 @@ export function CustomGraphDialog({ algo, input, regenerate, onClose }: {
       <label htmlFor="dsv-edges">{weighted ? '有向带权边' : directed ? '有向边' : '无向边'}</label>
       <textarea id="dsv-edges" rows={4} aria-describedby="dsv-edge-hint" value={edges}
         onChange={(event) => setEdges(event.target.value)} spellCheck={false} />
-      <small id="dsv-edge-hint">每行一条，如 <code>{weighted ? 'A B 4' : 'A B'}</code>{weighted ? '，权重 0–999' : directed ? ' 表示 A → B' : ''}。允许留空。</small>
+      <small id="dsv-edge-hint">每行一条，如 <code>{signed ? 'A B -2' : weighted ? 'A B 4' : 'A B'}</code>{signed ? '，权重 -999 至 999' : weighted ? '，权重 0–999' : directed ? ' 表示 A → B' : ''}。允许留空。</small>
     </StructureDialog>
   );
 }

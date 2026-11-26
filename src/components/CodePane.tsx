@@ -78,7 +78,7 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
     if (main !== undefined) example = `主串 ${main}，模式串 ${pattern}`;
     if (algo.input?.format === 'tree-level') example = formatTreeInput(p.input);
     if (graph) {
-      const weighted = algo.customGraph === 'weighted';
+      const weighted = algo.customGraph === 'weighted' || algo.customGraph === 'weighted-signed';
       const separator = algo.customGraph === 'undirected' ? '–' : '→';
       const edges = graph.edges.map(([from, to, weight]) =>
         `${graph.labels[from]}${separator}${graph.labels[to]}${weighted ? ` (${weight})` : ''}`);
