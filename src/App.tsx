@@ -1,3 +1,4 @@
+import { useLocale } from './i18n';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { navigate, useRoute } from './engine/router';
 import { usePlayer } from './engine/player';
@@ -36,6 +37,8 @@ const TABS: { key: MobileTab; label: string }[] = [
 ];
 
 export default function App() {
+  const { t, language, busy, loadFailed, toggle } = useLocale();
+  const switchLanguageLabel = language === 'en' ? '切换到中文' : 'Switch to English';
   const route = useRoute();
   const stageRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<MobileTab>('stage');
@@ -107,15 +110,29 @@ export default function App() {
       <header className="topbar">
         <button className="brand" onClick={() => navigate('map')}>DS<span>·</span>Visual</button>
         <nav className="topnav">
-          <button className={route.name === 'map' ? 'active' : ''} onClick={() => navigate('map')}>算法地图</button>
-          <button className={route.name === 'algo' ? 'active' : ''} onClick={() => navigate('algo/sort/select-sort')}>可视化</button>
-          <button className={route.name === 'compare' ? 'active' : ''} onClick={() => navigate('compare')}>算法对比</button>
-          <button className={route.name === 'lab' ? 'active' : ''} onClick={() => navigate('lab')}>练习中心</button>
+          <button className={route.name === 'map' ? 'active' : ''} onClick={() => navigate('map')}>{t("算法地图")}</button>
+          <button className={route.name === 'algo' ? 'active' : ''} onClick={() => navigate('algo/sort/select-sort')}>{t("可视化")}</button>
+          <button className={route.name === 'compare' ? 'active' : ''} onClick={() => navigate('compare')}>{t("算法对比")}</button>
+          <button className={route.name === 'lab' ? 'active' : ''} onClick={() => navigate('lab')}>{t("练习中心")}</button>
         </nav>
         <div className="topright">
-          <span className="top-hint">开源 · 无登录 · 无后端</span>
+          <span className="top-hint">{t("开源 · 无登录 · 无后端")}</span>
+          <button
+            type="button"
+            className="language-switch"
+            lang={language === 'en' ? 'zh-CN' : 'en'}
+            aria-label={switchLanguageLabel}
+            title={switchLanguageLabel}
+            disabled={busy}
+            onClick={toggle}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+              <path d="M7 2v1M1.5 6h12M11 6c0 3-3 6.5-7.5 9M4.5 9.5c1.4 2 3.2 3.7 5.5 5.2M12 22l5-10 5 10m-8-3.5h6" />
+            </svg>
+          </button>
           <a className="github-link" href="https://github.com/Dxdnsxsty/DSVisualization" target="_blank" rel="noreferrer"
-            aria-label="在 GitHub 查看源码" title="在 GitHub 查看源码">
+            aria-label={t("在 GitHub 查看源码")} title={t("在 GitHub 查看源码")}>
             <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
               {/* GitHub Octicons mark-github, MIT license. See THIRD_PARTY_NOTICES.md. */}
               <path d="M6.766 11.328c-2.063-.25-3.516-1.734-3.516-3.656 0-.781.281-1.625.75-2.188-.203-.515-.172-1.609.063-2.062.625-.078 1.468.25 1.968.703.594-.187 1.219-.281 1.985-.281.765 0 1.39.094 1.953.265.484-.437 1.344-.765 1.969-.687.218.422.25 1.515.046 2.047.5.593.766 1.39.766 2.203 0 1.922-1.453 3.375-3.547 3.64.531.344.89 1.094.89 1.954v1.625c0 .468.391.734.86.547C13.781 14.359 16 11.53 16 8.03 16 3.61 12.406 0 7.984 0 3.563 0 0 3.61 0 8.031a7.88 7.88 0 0 0 5.172 7.422c.422.156.828-.125.828-.547v-1.25c-.219.094-.5.156-.75.156-1.031 0-1.64-.562-2.078-1.609-.172-.422-.36-.672-.719-.719-.187-.015-.25-.093-.25-.187 0-.188.313-.328.625-.328.453 0 .844.281 1.25.86.313.452.64.655 1.031.655s.641-.14 1-.5c.266-.265.47-.5.657-.656" />
@@ -123,14 +140,15 @@ export default function App() {
           </a>
         </div>
       </header>
+      {loadFailed && <p className="locale-notice" role="status">英文资源加载失败，请刷新页面重试。</p>}
 
       <PlayerEffects slug={slug} />
-      <Suspense fallback={<main className="page" role="status">正在加载页面…</main>}>
+      <Suspense fallback={<main className="page" role="status">{t("正在加载页面…")}</main>}>
         {route.name === 'algo' && (
           <>
             <div className="mobile-tabs">
-              {TABS.map((t) => (
-                <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
+              {TABS.map(({ key, label }) => (
+                <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{t(label)}</button>
               ))}
             </div>
             <AlgorithmPage
@@ -149,9 +167,7 @@ export default function App() {
         {route.name === 'lab' && <PracticeLab key={JSON.stringify(route.exercise ?? null)} exercise={route.exercise} />}
       </Suspense>
 
-      <footer className="footer">
-        数据结构可视化 · MIT 开源 · 内容按课程章节组织，欢迎提 PR 补充算法与讲解
-      </footer>
+      <footer className="footer">{t("数据结构可视化 · MIT 开源 · 内容按课程章节组织，欢迎提 PR 补充算法与讲解")}</footer>
     </div>
   );
 }

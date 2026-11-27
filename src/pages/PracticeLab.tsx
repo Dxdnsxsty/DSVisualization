@@ -1,3 +1,4 @@
+import { useTranslate } from '../i18n';
 import { useMemo, useState } from 'react';
 import { algorithms, getAlgorithm } from '../algorithms/registry';
 import { Stage } from '../components/Stage';
@@ -22,6 +23,7 @@ function describeInput(algo: NonNullable<ReturnType<typeof getAlgorithm>>, input
 }
 
 export function PracticeLab({ exercise }: { exercise?: ExerciseReplay }) {
+  const t = useTranslate();
   const [slug, setSlug] = useState('stack/seq-stack');
   const [round, setRound] = useState(0);
   const [answer, setAnswer] = useState<string | null>(null);
@@ -84,46 +86,44 @@ export function PracticeLab({ exercise }: { exercise?: ExerciseReplay }) {
 
   return (
     <main className="page lab-page">
-      <div className="page-intro"><h1>练习中心</h1><p>观察当前状态，预测下一步，再到动画中验证。</p></div>
+      <div className="page-intro"><h1>{t("练习中心")}</h1><p>{t("观察当前状态，预测下一步，再到动画中验证。")}</p></div>
       <section className="panel lab-card">
-        <div className="practice-modes" role="group" aria-label="练习模式">
-          <button type="button" aria-pressed={!reviewing} onClick={() => chooseMode(false)}>普通练习</button>
-          <button type="button" aria-pressed={reviewing} onClick={() => chooseMode(true)}>只练错题（{mistakes.length}）</button>
+        <div className="practice-modes" role="group" aria-label={t("练习模式")}>
+          <button type="button" aria-pressed={!reviewing} onClick={() => chooseMode(false)}>{t("普通练习")}</button>
+          <button type="button" aria-pressed={reviewing} onClick={() => chooseMode(true)}>{t(`只练错题（${mistakes.length}）`)}</button>
         </div>
-        {storageFailed && <p className="muted">当前浏览器无法保存错题，离开此页后本次改动可能丢失。</p>}
+        {storageFailed && <p className="muted">{t("当前浏览器无法保存错题，离开此页后本次改动可能丢失。")}</p>}
         {!reviewing && exerciseAlgo && <div className="panel-head">
-          <span>{exerciseAlgo.title} · 当前数据练习</span>
-          <button type="button" className="mini" onClick={() => navigate('lab')}>返回预设题库</button>
+          <span>{t(exerciseAlgo.title)}{t(" · 当前数据练习")}</span>
+          <button type="button" className="mini" onClick={() => navigate('lab')}>{t("返回预设题库")}</button>
         </div>}
         {!reviewing && !exerciseAlgo && <div className="panel-head">
-          <label htmlFor="practice-algorithm">选择算法</label>
+          <label htmlFor="practice-algorithm">{t("选择算法")}</label>
           <select id="practice-algorithm" value={slug} onChange={(event) => chooseAlgorithm(event.target.value)}>
-            {algorithms.map((item) => <option key={item.slug} value={item.slug}>{item.title}</option>)}
+            {algorithms.map((item) => <option key={item.slug} value={item.slug}>{t(item.title)}</option>)}
           </select>
         </div>}
         {task ? <>
-          <p className="muted">{reviewing && `${taskAlgo.title} · `}本题输入 {inputLabel} · 第 {task.step + 1} 步</p>
+          <p className="muted">{reviewing && `${t(taskAlgo.title)} · `}{t(`本题输入 ${inputLabel} · 第 ${task.step + 1} 步`)}</p>
           <Stage scene={task.before.scene} />
-          <p>{task.before.caption}</p>
-          <p className="lab-question" id="practice-question">{task.prompt}</p>
+          <p>{t(task.before.caption)}</p>
+          <p className="lab-question" id="practice-question">{t(task.prompt)}</p>
           <div className="lab-options" role="group" aria-labelledby="practice-question">
             {task.choices.map((choice) => (
               <button key={choice} type="button" className={answer === choice ? 'primary' : ''} aria-pressed={answer === choice} disabled={mastered}
-                onClick={() => submit(choice)}>{choice}</button>
+                onClick={() => submit(choice)}>{t(choice)}</button>
             ))}
           </div>
           {answer !== null && <div role="status" className={`lab-result${answer === task.answer ? '' : ' wrong'}`}>
-            {answer === task.answer ? '回答正确。' : `正确答案是「${task.answer}」。`}{task.after.caption}
-            {reviewing && review && <div>复习前错选「{review.choice}」。{mastered && '已移出待复习错题。'}</div>}
+            {t(answer === task.answer ? '回答正确。' : `正确答案是「${task.answer}」。`)}{t(task.after.caption)}
+            {reviewing && review && <div>{t(`复习前错选「${review.choice}」。`)}{mastered && t('已移出待复习错题。')}</div>}
           </div>}
           <p>
-            <button type="button" className="mini" onClick={nextQuestion}>{reviewing && mistakes.length === 0 ? '结束复习' : '换一题'}</button>{' '}
-            {(reviewing || answer !== null) && <button type="button" className="mini" onClick={() => navigate(algorithmReplayPath(taskAlgo.slug, { input: task.input, step: task.step }))}>
-              从第 {task.step + 1} 步打开动画
-            </button>}
+            <button type="button" className="mini" onClick={nextQuestion}>{t(reviewing && mistakes.length === 0 ? '结束复习' : '换一题')}</button>{' '}
+            {(reviewing || answer !== null) && <button type="button" className="mini" onClick={() => navigate(algorithmReplayPath(taskAlgo.slug, { input: task.input, step: task.step }))}>{t(`从第 ${task.step + 1} 步打开动画`)}</button>}
           </p>
-        </> : <p className="muted">{reviewing ? '没有待复习的错题。' :
-          exerciseAlgo ? '这组数据没有可出题的步骤。可以换一组输入或返回预设题库。' : '这个算法暂时没有可用的练习题。'}</p>}
+        </> : <p className="muted">{t(reviewing ? '没有待复习的错题。' :
+          exerciseAlgo ? '这组数据没有可出题的步骤。可以换一组输入或返回预设题库。' : '这个算法暂时没有可用的练习题。')}</p>}
       </section>
     </main>
   );

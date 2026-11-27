@@ -22,12 +22,16 @@ try {
     ['graph/floyd', [4]], ['graph/floyd', [5]],
     ['tree/huffman', [5, 29, 7, 8, 14, 23, 3, 11]],
     ['tree/huffman', Array(8).fill(1)], ['tree/huffman', [3, 5]],
+    ['recursion/factorial', [3]], ['recursion/factorial', [8]],
   ];
   for (const [index, [slug, input]] of cases.entries()) {
     const algo = getAlgorithm(slug);
-    const final = algo.generate(input).at(-1).scene;
+    const lastStep = algo.generate(input).at(-1);
+    const final = lastStep.scene;
     let expected;
-    if (final.distanceMatrix) {
+    if (slug === 'recursion/factorial') {
+      expected = String(lastStep.vars.返回值);
+    } else if (final.distanceMatrix) {
       expected = final.distanceMatrix.values.map((row) => row.join(' ').replaceAll('∞', 'INF')).join('\n');
     } else if (final.huffman) {
       const { rows, wpl } = final.huffman;

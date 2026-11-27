@@ -1,8 +1,10 @@
+import { useTranslate } from '../i18n';
 import { useState } from 'react';
 import { usePlayer } from '../engine/player';
 import { algorithmReplayPath } from '../engine/router';
 
 export function ShareReplay() {
+  const t = useTranslate();
   const [message, setMessage] = useState('');
   const [manualLink, setManualLink] = useState('');
 
@@ -30,9 +32,9 @@ export function ShareReplay() {
 
   return (
     <div className="share-replay">
-      <button type="button" className="mini" onClick={copy}>复制演示链接</button>
-      <span className="muted" role="status">{message}</span>
-      {manualLink && <input aria-label="演示链接" readOnly value={manualLink} onFocus={(event) => event.target.select()} />}
+      <button type="button" className="mini" onClick={copy}>{t("复制演示链接")}</button>
+      <span className="muted" role="status">{t(message)}</span>
+      {manualLink && <input aria-label={t("演示链接")} readOnly value={manualLink} onFocus={(event) => event.target.select()} />}
     </div>
   );
 }

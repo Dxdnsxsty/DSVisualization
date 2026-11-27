@@ -172,6 +172,7 @@ select:hover { border-color: #d8dbe3; }
 
 .topright { margin-left: auto; display: flex; gap: 18px; align-items: center; }
 .top-hint { font-size: 12px; color: var(--ok); font-weight: 500; }
+.language-switch,
 .github-link {
   display: inline-flex;
   align-items: center;
@@ -181,8 +182,12 @@ select:hover { border-color: #d8dbe3; }
   border-radius: var(--radius-ctl);
   transition: color var(--dur) var(--ease);
 }
+.language-switch { border: 0; background: transparent; }
+.language-switch:hover { background: transparent; }
+.language-switch:hover, .language-switch:focus-visible,
 .github-link:hover, .github-link:focus-visible { color: var(--accent); }
-.github-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.language-switch:focus-visible, .github-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.locale-notice { margin: 0; padding: 8px 16px; text-align: center; color: var(--danger); background: var(--danger-soft); }
 
 .footer {
   margin-top: auto;
@@ -258,6 +263,8 @@ select:hover { border-color: #d8dbe3; }
 
 .lab-grid, .compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .lab-card { min-height: 240px; }
+.lab-card .panel-head { flex-wrap: wrap; }
+.lab-card select { min-width: 0; max-width: 100%; }
 .practice-modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .practice-modes button[aria-pressed='true'] {
   color: var(--accent);
@@ -359,6 +366,7 @@ select:hover { border-color: #d8dbe3; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.catalog:lang(en) .cat-name { white-space: normal; }
 .cat-item:hover { background: var(--accent-line); color: var(--text); }
 .cat-item.current {
   background: var(--accent-line);
@@ -1044,8 +1052,9 @@ select:hover { border-color: #d8dbe3; }
   .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
   .brand { font-size: 20px; }
   .topnav { order: 3; width: 100%; gap: 2px; }
-  .topnav button { flex: 1; text-align: center; padding: 7px 8px; }
-  .topright { display: none; }
+  .topnav button { flex: 1 1 auto; min-width: 0; text-align: center; padding: 7px 4px; white-space: normal; }
+  .topright { gap: 8px; }
+  .top-hint { display: none; }
 
   .workbench, .page { padding: 16px 16px 32px; }
   .mobile-tabs { display: flex; padding: 12px 16px 0; }
@@ -1071,7 +1080,9 @@ select:hover { border-color: #d8dbe3; }
 
   .catalog { max-height: none; }
   .explain-body { grid-template-columns: 1fr; }
-  .lab-grid, .compare-grid { grid-template-columns: 1fr; }
+  .lab-grid, .compare-grid { grid-template-columns: minmax(0, 1fr); }
+  .mobile-tabs button { flex: 1 0 auto; min-width: 0; padding-inline: 8px; }
+  .tag { white-space: normal; overflow-wrap: anywhere; }
   .title-row h1 { font-size: 24px; }
   .page-intro h1 { font-size: 26px; }
   .code-lines { max-height: 50vh; }

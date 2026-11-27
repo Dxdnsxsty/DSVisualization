@@ -1,6 +1,10 @@
 import type { AlgorithmMeta, TraceStep } from '../../engine/types';
 import { arrayScene, makeStep, node } from '../../engine/scene';
 
+const defaultN = 5;
+const cppCall = (n: number) => `  std::cout << Fact(${n});`;
+const pythonCall = (n: number) => `print(fact(${n}))`;
+
 export const factorial: AlgorithmMeta = {
   slug: 'recursion/factorial',
   title: '递归 · 求阶乘',
@@ -10,8 +14,12 @@ export const factorial: AlgorithmMeta = {
   complexity: { time: 'O(n)', space: 'O(n)', extra: '递归深度 n，调用栈占 n 层' },
   difficulty: '入门',
   inputHint: '输入一个整数 n（3–8），演示 n! 的递归求解与调用栈的进出。',
-  defaultInput: [5],
+  defaultInput: [defaultN],
   input: { min: 3, max: 8, minLen: 1, maxLen: 1 },
+  runnable: (lang, [n], code) => {
+    const call = lang === 'python' ? pythonCall : cppCall;
+    return code.replace(call(defaultN), call(n));
+  },
   code: {
     cpp: [
       { text: '#include <iostream>' },
@@ -21,7 +29,7 @@ export const factorial: AlgorithmMeta = {
       { text: '  return n * f;', anchor: 'mul' },
       { text: '}' },
       { text: 'int main() {' },
-      { text: '  std::cout << Fact(5);', anchor: 'done' },
+      { text: cppCall(defaultN), anchor: 'done' },
       { text: '  return 0;' },
       { text: '}' },
     ],
@@ -31,7 +39,7 @@ export const factorial: AlgorithmMeta = {
       { text: '        return 1' },
       { text: '    f = fact(n - 1)', anchor: 'call' },
       { text: '    return n * f', anchor: 'mul' },
-      { text: 'print(fact(5))', anchor: 'done' },
+      { text: pythonCall(defaultN), anchor: 'done' },
     ],
   },
   doc: [

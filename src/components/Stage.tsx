@@ -1,3 +1,4 @@
+import { useTranslate } from '../i18n';
 import { forwardRef, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { EdgeState, ListLink, NodeState, Scene, SceneEdge } from '../engine/types';
 import { layoutGraph, layoutTree, type LayoutPoint } from '../engine/layout';
@@ -46,6 +47,7 @@ interface Props {
 
 /** SVG 舞台：图元 id 稳定 + CSS transform 过渡 = 简化版 FLIP，交换/插入自带位移动画。 */
 export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, fullscreenControls, onFullscreen, fullscreenError }, ref) {
+  const t = useTranslate();
   const isTreeGraph = scene.kind === 'tree' || scene.kind === 'graph';
   const canvasRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -110,19 +112,19 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
   return (
     <div className="panel stage" ref={ref}>
       <div className="stage-head">
-        <span>动画舞台</span>
+        <span>{t("动画舞台")}</span>
         <div className="stage-head-actions">
-          <span className="muted">{scene.note ?? ''}</span>
+          <span className="muted">{t(scene.note ?? '')}</span>
           {onFullscreen && <button className="fullscreen-button" onClick={onFullscreen}
-            title={fullscreen ? '退出全屏 (F / Esc)' : '进入全屏 (F)'}
-            aria-label={fullscreen ? '退出全屏' : '进入全屏'} aria-pressed={fullscreen}>
+            title={t(fullscreen ? '退出全屏 (F / Esc)' : '进入全屏 (F)')}
+            aria-label={t(fullscreen ? '退出全屏' : '进入全屏')} aria-pressed={fullscreen}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
               <path d={fullscreen ? 'M3 8h5V3M16 3v5h5M21 16h-5v5M8 21v-5H3' : 'M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5'} />
             </svg>
           </button>}
         </div>
       </div>
-      {fullscreenError && <p className="error" role="alert">{fullscreenError}</p>}
+      {fullscreenError && <p className="error" role="alert">{t(fullscreenError)}</p>}
       <div className="stage-viewport" ref={viewportRef}>
         <div className="stage-content" ref={contentRef}>
         <div className="stage-canvas" ref={canvasRef} onScroll={syncHint}>
@@ -130,15 +132,15 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
             <div className="graph-details-graph"><TreeGraphSvg scene={pathScene} compact onSelectVertex={setSelectedVertex}
               vertexLabels={new Map(scene.huffman.rows.map(({ id, symbol }) => [id, symbol]))} /></div>
             <div className="graph-details">
-              <table aria-label="哈夫曼编码表">
-                <caption>哈夫曼编码 · WPL = {scene.huffman.wpl}</caption>
-                <thead><tr>{['字符', '权值', '编码', '深度', 'WPL 贡献'].map((label) => <th key={label} scope="col">{label}</th>)}</tr></thead>
+              <table aria-label={t("哈夫曼编码表")}>
+                <caption>{t("哈夫曼编码 · WPL = ")}{scene.huffman.wpl}</caption>
+                <thead><tr>{['字符', '权值', '编码', '深度', 'WPL 贡献'].map((label) => <th key={label} scope="col">{t(label)}</th>)}</tr></thead>
                 <tbody>{scene.huffman.rows.map(({ id, symbol, weight, bits }) => <tr key={id} className={id === selectedVertex ? 'detail-updated' : undefined}>
-                  <th scope="row"><button className="vertex-select" aria-label={`高亮字符 ${symbol} 的编码路径`} aria-pressed={id === selectedVertex} onClick={() => setSelectedVertex(id)}>{symbol}</button></th>
-                  <td>{weight}</td><td><code>{bits}</code></td><td>{bits.length}</td><td>{weight * bits.length}</td>
+                  <th scope="row"><button className="vertex-select" aria-label={t(`高亮字符 ${symbol} 的编码路径`)} aria-pressed={id === selectedVertex} onClick={() => setSelectedVertex(id)}>{t(symbol)}</button></th>
+                  <td>{weight}</td><td><code>{t(bits)}</code></td><td>{bits.length}</td><td>{weight * bits.length}</td>
                 </tr>)}</tbody>
               </table>
-              <p className="graph-detail-note">左边为 0，右边为 1。选择叶子或表中字符可高亮编码路径。</p>
+              <p className="graph-detail-note">{t("左边为 0，右边为 1。选择叶子或表中字符可高亮编码路径。")}</p>
             </div>
           </div> : scene.distanceMatrix || scene.primTable || scene.disjointSet ? <div className="graph-details-stage">
             <div className="graph-details-graph"><TreeGraphSvg scene={scene} compact /></div>
@@ -152,7 +154,7 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
           </div> : scene.aux?.layout === 'queue' ? <div className="tree-queue-stage">
             <div className="queue-tree"><TreeGraphSvg scene={scene} compact /></div>
             <div className="queue-side">
-              <span className="aux-label">{scene.aux.label}</span>
+              <span className="aux-label">{t(scene.aux.label)}</span>
               <QueueSvg nodes={scene.aux.nodes} />
             </div>
           </div> : scene.aux?.layout === 'stack' || scene.aux?.layout === 'call-stack' ? <div className="bracket-stage">
@@ -160,7 +162,7 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
               {isTreeGraph ? <TreeGraphSvg scene={scene} compact /> : <LinearSvg scene={scene} />}
             </div>
             <div className={scene.aux.layout === 'call-stack' ? 'bracket-stack call-stack-side' : 'bracket-stack'}>
-              <span className="aux-label">{scene.aux.label}</span>
+              <span className="aux-label">{t(scene.aux.label)}</span>
               <StackSvg compact scene={{ kind: 'array', layout: scene.aux.layout, nodes: scene.aux.nodes, pointers: scene.aux.pointers, capacity: scene.aux.capacity ?? scene.aux.nodes.length }} />
             </div>
           </div> : isTreeGraph ? <TreeGraphSvg scene={scene} /> :
@@ -169,7 +171,7 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
         </div>
       {scene.aux && !scene.aux.layout && (
         <div className="aux-wrap">
-          <span className="aux-label">{scene.aux.label}</span>
+          <span className="aux-label">{t(scene.aux.label)}</span>
           <div className="aux-row">
             {scene.aux.nodes.map((n) => {
               const c = COLOR[n.state ?? 'default'];
@@ -178,22 +180,22 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
                   key={n.id}
                   className="aux-cell"
                   style={{ background: c.fill, borderColor: c.stroke }}
-                  title={n.label}
+                  title={t(n.label)}
                 >
-                  {n.value === '' ? '\u00a0' : n.value}
+                  {t(n.value === '' ? '\u00a0' : n.value)}
                 </span>
               );
             })}
           </div>
         </div>
       )}
-          {scene.output && <div className="aux-wrap output-sequence" aria-label={scene.output.label}>
-            <span className="aux-label">{scene.output.label}</span>
+          {scene.output && <div className="aux-wrap output-sequence" aria-label={t(scene.output.label)}>
+            <span className="aux-label">{t(scene.output.label)}</span>
             <div className="aux-row">
               {scene.output.values.length ? scene.output.values.map((value, index) => <span className="output-item" key={index}>
                 {index > 0 && <span aria-hidden="true">→</span>}
-                <span className="aux-cell">{value}</span>
-              </span>) : <span className="aux-label">尚未输出</span>}
+                <span className="aux-cell">{t(value)}</span>
+              </span>) : <span className="aux-label">{t("尚未输出")}</span>}
             </div>
           </div>}
         </div>
@@ -201,64 +203,58 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
       </div>
       <div className="legend">
         {scene.huffman ? <>
-          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />所选编码路径</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />{t("所选编码路径")}</span>
         </> : scene.distanceMatrix ? <>
-          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />中转顶点／D[i][k]</span>
+          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />{t("中转顶点／D[i][k]")}</span>
           <span className="legend-item"><i style={{ background: COLOR.min.fill, borderColor: COLOR.min.stroke }} />D[k][j]</span>
-          <span className="legend-item"><i style={{ borderColor: EDGE_COLOR.active }} />目标 D[i][j]</span>
-          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />本步更新</span>
+          <span className="legend-item"><i style={{ borderColor: EDGE_COLOR.active }} />{t("目标 D[i][j]")}</span>
+          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />{t("本步更新")}</span>
         </> : scene.primTable || scene.disjointSet ? <>
-          <span className="legend-item"><i style={{ background: EDGE_COLOR.tree }} />已选生成树边</span>
-          <span className="legend-item"><i style={{ background: EDGE_COLOR.candidate }} />候选边／最小候选</span>
-          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />正在考察</span>
-          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />{scene.primTable ? '本轮刷新' : '合并分量'}</span>
-          {scene.disjointSet && <span className="legend-item"><i style={{ background: COLOR.delete.fill, borderColor: COLOR.delete.stroke }} />同分量成环</span>}
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.tree }} />{t("已选生成树边")}</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.candidate }} />{t("候选边／最小候选")}</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />{t("正在考察")}</span>
+          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />{t(scene.primTable ? '本轮刷新' : '合并分量')}</span>
+          {scene.disjointSet && <span className="legend-item"><i style={{ background: COLOR.delete.fill, borderColor: COLOR.delete.stroke }} />{t("同分量成环")}</span>}
         </> : scene.shortestPath ? <>
-          <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />距离已确定</span>
-          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />待确定顶点</span>
-          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />本步更新</span>
-          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />所选路径</span>
+          <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />{t("距离已确定")}</span>
+          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />{t("待确定顶点")}</span>
+          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />{t("本步更新")}</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />{t("所选路径")}</span>
         </> : scene.graphTrace === 'topology' ? <>
-          <span className="legend-item"><i style={{ background: EDGE_COLOR.default }} />未删除的依赖边（实线）</span>
-          <span className="legend-item"><i style={{ background: 'transparent', borderColor: EDGE_COLOR.removed, borderStyle: 'dashed' }} />已删除的依赖边（虚线）</span>
-          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />待输出顶点</span>
-          <span className="legend-item"><i style={{ background: COLOR.sorted.fill, borderColor: COLOR.sorted.stroke }} />已输出顶点</span>
-          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />新入栈</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.default }} />{t("未删除的依赖边（实线）")}</span>
+          <span className="legend-item"><i style={{ background: 'transparent', borderColor: EDGE_COLOR.removed, borderStyle: 'dashed' }} />{t("已删除的依赖边（虚线）")}</span>
+          <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />{t("待输出顶点")}</span>
+          <span className="legend-item"><i style={{ background: COLOR.sorted.fill, borderColor: COLOR.sorted.stroke }} />{t("已输出顶点")}</span>
+          <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />{t("新入栈")}</span>
         </> : scene.graphTrace ? <>
-          <span className="legend-item"><i style={{ background: COLOR.found.stroke }} />{scene.graphTrace === 'adjacency' ? '已挂接的方向' : '首次访问路径'}</span>
-          <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />{scene.graphTrace === 'adjacency' ? '已写入邻接表' : '已标记访问'}</span>
-          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />正在考察或处理</span>
-          {scene.aux?.layout === 'call-stack' && <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />当前调用</span>}
+          <span className="legend-item"><i style={{ background: COLOR.found.stroke }} />{t(scene.graphTrace === 'adjacency' ? '已挂接的方向' : '首次访问路径')}</span>
+          <span className="legend-item"><i style={{ background: COLOR.found.fill, borderColor: COLOR.found.stroke }} />{t(scene.graphTrace === 'adjacency' ? '已写入邻接表' : '已标记访问')}</span>
+          <span className="legend-item"><i style={{ background: EDGE_COLOR.active }} />{t("正在考察或处理")}</span>
+          {scene.aux?.layout === 'call-stack' && <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />{t("当前调用")}</span>}
           {scene.aux?.layout === 'queue' && <>
-            <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />当前队头</span>
-            <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />新入队</span>
+            <span className="legend-item"><i style={{ background: COLOR.active.fill, borderColor: COLOR.active.stroke }} />{t("当前队头")}</span>
+            <span className="legend-item"><i style={{ background: COLOR.insert.fill, borderColor: COLOR.insert.stroke }} />{t("新入队")}</span>
           </>}
         </> : <>
         {isTreeGraph
           ? [
               <span key="e-tree" className="legend-item">
-                <i style={{ background: '#2C3E50', borderColor: '#2C3E50' }} />
-                已确定的边
-              </span>,
+                <i style={{ background: '#2C3E50', borderColor: '#2C3E50' }} />{t("已确定的边")}</span>,
               <span key="e-act" className="legend-item">
-                <i style={{ background: '#225EFC', borderColor: '#225EFC' }} />
-                正在考察
-              </span>,
+                <i style={{ background: '#225EFC', borderColor: '#225EFC' }} />{t("正在考察")}</span>,
               <span key="e-cand" className="legend-item">
-                <i style={{ background: '#F99000', borderColor: '#F99000' }} />
-                候选边
-              </span>,
+                <i style={{ background: '#F99000', borderColor: '#F99000' }} />{t("候选边")}</span>,
             ]
           : null}
         {LEGEND.map((l) => (
           <span key={l.state} className="legend-item">
             <i style={{ background: COLOR[l.state].fill, borderColor: COLOR[l.state].stroke }} />
-            {l.state === 'active' && scene.aux?.layout === 'call-stack' ? '当前调用' : l.state === 'sorted' && scene.output && scene.kind === 'tree' ? '已访问' : l.text}
+            {t(l.state === 'active' && scene.aux?.layout === 'call-stack' ? '当前调用' : l.state === 'sorted' && scene.output && scene.kind === 'tree' ? '已访问' : l.text)}
           </span>
         ))}
         </>}
       </div>
-      {fullscreenControls && <div className="stage-fullscreen-controls">{fullscreenControls}</div>}
+      {fullscreenControls && <div className="stage-fullscreen-controls">{t(fullscreenControls)}</div>}
     </div>
   );
 });
@@ -266,21 +262,22 @@ export const Stage = forwardRef<HTMLDivElement, Props>(function Stage({ scene, f
 function ShortestPathTable({ data, selected, onSelect }: {
   data: NonNullable<Scene['shortestPath']>; selected: string | null; onSelect: (id: string) => void;
 }) {
+  const t = useTranslate();
   const row = data.rows.find(({ id }) => id === selected);
   const vertex = (id: string) => data.rows.find((item) => item.id === id)?.vertex ?? id;
   return <div className="shortest-path-table">
-    <table aria-label="Dijkstra 计算表">
-      <caption>源点 {vertex(data.source)} · 点击顶点查看路径</caption>
-      <thead><tr><th scope="col">顶点</th><th scope="col">距离</th><th scope="col">前驱</th><th scope="col">已确定</th></tr></thead>
+    <table aria-label={t("Dijkstra 计算表")}>
+      <caption>{t("源点 ")}{t(vertex(data.source))}{t(" · 点击顶点查看路径")}</caption>
+      <thead><tr><th scope="col">{t("顶点")}</th><th scope="col">{t("距离")}</th><th scope="col">{t("前驱")}</th><th scope="col">{t("已确定")}</th></tr></thead>
       <tbody>{data.rows.map((item) => <tr key={item.id} data-vertex={item.vertex} className={item.changed ? 'path-row-updated' : undefined}>
-        <th scope="row"><button className="vertex-select" aria-label={`查看 ${item.vertex} 的路径`} aria-pressed={selected === item.id} onClick={() => onSelect(item.id)}>{item.vertex}</button></th>
-        <td>{item.distance ?? '∞'}</td><td>{item.predecessor ?? '—'}</td><td>{item.settled ? '是' : '否'}</td>
+        <th scope="row"><button className="vertex-select" aria-label={t(`查看 ${item.vertex} 的路径`)} aria-pressed={selected === item.id} onClick={() => onSelect(item.id)}>{t(item.vertex)}</button></th>
+        <td>{item.distance ?? '∞'}</td><td>{t(item.predecessor ?? '—')}</td><td>{t(item.settled ? '是' : '否')}</td>
       </tr>)}</tbody>
     </table>
-    <div className="path-detail" aria-live="polite" aria-label="所选路径">
-      {!row ? '点击图中顶点或表中按钮，可查看当前步骤的路径。' : row.distance === null
+    <div className="path-detail" aria-live="polite" aria-label={t("所选路径")}>
+      {t(!row ? '点击图中顶点或表中按钮，可查看当前步骤的路径。' : row.distance === null
         ? data.complete ? `${vertex(data.source)} 无法到达 ${row.vertex}，没有路径。` : `当前尚未发现通往 ${row.vertex} 的路径。`
-        : <>{row.settled ? '已确定的最短路径' : '当前候选路径（尚未确定最短）'}：<br />{row.path.map(vertex).join(' → ')}<br />距离：{row.distance}</>}
+        : <>{t(row.settled ? '已确定的最短路径' : '当前候选路径（尚未确定最短）')}：<br />{t(row.path.map(vertex).join(' → '))}<br />{t("距离：")}{row.distance}</>)}
     </div>
   </div>;
 }
@@ -288,6 +285,7 @@ function ShortestPathTable({ data, selected, onSelect }: {
 function SubtreeOutlines({ edges, points, focus }: {
   edges: SceneEdge[]; points: Record<string, LayoutPoint>; focus: NonNullable<Scene['subtrees']>;
 }) {
+  const t = useTranslate();
   const descendants = (id: string): LayoutPoint[] => [points[id], ...edges.filter((edge) => edge.from === id).flatMap((edge) => descendants(edge.to))];
   const pad = NODE_R + 5;
   return edges.filter((edge) => edge.from === focus.root && edge.side).map((edge) => {
@@ -300,7 +298,7 @@ function SubtreeOutlines({ edges, points, focus }: {
     const color = active ? 'var(--accent)' : 'var(--muted)';
     const label = edge.side === 'left' ? 'L · 左子树' : 'R · 右子树';
     return <g key={edge.to}>
-      <title>{label}</title>
+      <title>{t(label)}</title>
       <rect x={x} y={y} width={w} height={h} rx={8} fill={active ? 'var(--accent-soft)' : 'none'}
         stroke={color} strokeWidth={active ? 2 : 1} strokeDasharray={active ? undefined : '4 3'} />
       <text x={x + w / 2} y={y - 6} textAnchor="middle" fill={color} fontSize="12" fontWeight="600">{edge.side === 'left' ? 'L' : 'R'}</text>
@@ -312,6 +310,7 @@ function SubtreeOutlines({ edges, points, focus }: {
 export function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLabels, label = '当前步骤的树 / 图状态' }: {
   scene: Scene; compact?: boolean; onSelectVertex?: (id: string) => void; vertexLabels?: Map<string, string>; label?: string;
 }) {
+  const t = useTranslate();
   const markerId = useId();
   const markerUrl = (suffix: string) => `url(#${markerId}-${suffix})`;
   const edges: SceneEdge[] = scene.edges ?? [];
@@ -332,7 +331,7 @@ export function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLab
       viewBox={`${left} ${top} ${width} ${height}`}
       width={compact ? width : '100%'}
       role="img"
-      aria-label={label}
+      aria-label={t(label)}
     >
       <defs>
         <marker id={`${markerId}-default`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -402,7 +401,7 @@ export function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLab
                   opacity={0.92}
                 />
                 <text x={mx} y={my + 3} textAnchor="middle" fontSize="11" fill="#5F5E5A" fontFamily="monospace">
-                  {e.label}
+                  {t(e.label)}
                 </text>
               </>
             )}
@@ -417,7 +416,7 @@ export function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLab
         const c = scene.graphTrace && n.state === 'visited' ? COLOR.found : COLOR[n.state ?? 'default'];
         return (
           <g key={n.id} role={select ? 'button' : undefined} tabIndex={select ? 0 : undefined}
-            aria-label={select ? `查看 ${vertexLabels?.get(n.id) ?? n.value} 的路径` : undefined}
+            aria-label={t(select ? `查看 ${vertexLabels?.get(n.id) ?? n.value} 的路径` : undefined)}
             onClick={select ? () => select(n.id) : undefined}
             onKeyDown={select ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(n.id); } } : undefined}
             style={{ cursor: select ? 'pointer' : undefined, transform: `translate(${p.x}px, ${p.y}px)`, transition: 'transform 340ms cubic-bezier(0.22, 0.8, 0.2, 1)' }}>
@@ -429,16 +428,16 @@ export function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLab
               fontFamily="monospace"
               fill="#2C2C2A"
             >
-              {n.value}
+              {t(n.value)}
             </text>
             {n.label && (
               <text y={NODE_R + 15} textAnchor="middle" fontSize="11" fill="#993C1D" fontFamily="monospace">
-                {n.label}
+                {t(n.label)}
               </text>
             )}
             {n.badge && (
               <text y={-NODE_R - 8} textAnchor="middle" fontSize="11" fill="#3C3489" fontFamily="monospace">
-                {n.badge}
+                {t(n.badge)}
               </text>
             )}
           </g>
@@ -449,6 +448,7 @@ export function TreeGraphSvg({ scene, compact = false, onSelectVertex, vertexLab
 }
 
 function AdjacencySvg({ scene }: { scene: Scene }) {
+  const t = useTranslate();
   const arrowId = useId();
   const rows = scene.adjacency ?? [];
   const names = new Map(scene.nodes.map(({ id, value }) => [id, value]));
@@ -460,21 +460,21 @@ function AdjacencySvg({ scene }: { scene: Scene }) {
   const height = 42 + rows.length * 46;
   const arrow = `url(#${arrowId})`;
 
-  return <svg className="adjacency-svg" viewBox={`0 0 ${width} ${height}`} width={width} role="img" aria-label="邻接表，顶点指向邻接结点链，链尾为 NULL">
+  return <svg className="adjacency-svg" viewBox={`0 0 ${width} ${height}`} width={width} role="img" aria-label={t("邻接表，顶点指向邻接结点链，链尾为 NULL")}>
     <defs><marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
       <path d="M2 1L9 5L2 9" fill="none" stroke="var(--muted)" strokeWidth="1.5" />
     </marker></defs>
-    <text x={42} y={20} textAnchor="middle" fontSize="12" fill="var(--muted)">顶点表</text>
-    <text x={startX} y={20} fontSize="12" fill="var(--muted)">邻接结点链（头插法）</text>
+    <text x={42} y={20} textAnchor="middle" fontSize="12" fill="var(--muted)">{t("顶点表")}</text>
+    <text x={startX} y={20} fontSize="12" fill="var(--muted)">{t("邻接结点链（头插法）")}</text>
     {rows.map((row, index) => {
       const y = 36 + index * 46;
       const center = y + 15;
       const color = COLOR[row.active ? 'active' : 'default'];
       const chain = row.neighbors.map((id) => names.get(id)).join(' → ');
       return <g key={row.vertex}>
-        <title>{`${names.get(row.vertex)} → ${chain ? `${chain} → ` : ''}NULL`}</title>
+        <title>{t(`${names.get(row.vertex)} → ${chain ? `${chain} → ` : ''}NULL`)}</title>
         <rect x={16} y={y} width={52} height={30} rx={4} fill={color.fill} stroke={color.stroke} />
-        <text x={42} y={center} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--text)">{names.get(row.vertex)}</text>
+        <text x={42} y={center} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--text)">{t(names.get(row.vertex))}</text>
         <path d={`M70 ${center} H${startX - 4}`} fill="none" stroke="var(--muted)" strokeWidth="1.5" markerEnd={arrow} />
         {row.neighbors.map((neighbor, position) => {
           const x = startX + position * stepWidth;
@@ -483,7 +483,7 @@ function AdjacencySvg({ scene }: { scene: Scene }) {
           return <g key={neighbor}>
             <rect x={x} y={y} width={slotWidth} height={30} rx={4} fill={style.fill} stroke={style.stroke} />
             <path d={`M${x + 48} ${y} V${y + 30}`} stroke={style.stroke} />
-            <text x={x + 24} y={center} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--text)">{names.get(neighbor)}</text>
+            <text x={x + 24} y={center} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--text)">{t(names.get(neighbor))}</text>
             <path d={`M${x + 58} ${center} H${x + stepWidth - 4}`} fill="none" stroke="var(--muted)" strokeWidth="1.5" markerEnd={arrow} />
           </g>;
         })}
@@ -494,12 +494,13 @@ function AdjacencySvg({ scene }: { scene: Scene }) {
 }
 
 function QueueSvg({ nodes }: { nodes: Scene['nodes'] }) {
+  const t = useTranslate();
   const width = 220;
   const top = 46;
   const rowHeight = 36;
   const bottom = top + Math.max(3, nodes.length) * rowHeight;
-  return <svg className="queue-svg" viewBox={`54 0 ${width - 54} ${bottom + 40}`} width={width - 54} role="img" aria-label={`待访问队列，队头到队尾为 ${nodes.map(({ value }) => value).join('、') || '空'}`}>
-    <text x={width / 2} y={24} textAnchor="middle" fontSize="12" fill="var(--muted)">↑ 队头出队</text>
+  return <svg className="queue-svg" viewBox={`54 0 ${width - 42} ${bottom + 40}`} width={width - 54} role="img" aria-label={t(`待访问队列，队头到队尾为 ${nodes.map(({ value }) => value).join('、') || '空'}`)}>
+    <text x={width / 2} y={24} textAnchor="middle" fontSize="12" fill="var(--muted)">{t("↑ 队头出队")}</text>
     <path d={`M66 ${top} V${bottom} M154 ${top} V${bottom}`} fill="none" stroke="var(--muted)" strokeWidth="2" />
     {nodes.map((node, index) => {
       const y = top + index * rowHeight;
@@ -507,16 +508,17 @@ function QueueSvg({ nodes }: { nodes: Scene['nodes'] }) {
       const label = nodes.length === 1 ? '头 / 尾' : index === 0 ? '队头' : index === nodes.length - 1 ? '队尾' : '';
       return <g key={node.id}>
         <rect x={72} y={y + 2} width={76} height={rowHeight - 4} rx={4} fill={color.fill} stroke={color.stroke} />
-        <text x={width / 2} y={y + rowHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="var(--text)">{node.value}</text>
-        {label && <text x={162} y={y + rowHeight / 2} dominantBaseline="central" fontSize="12" fill="var(--accent)">{label}</text>}
+        <text x={width / 2} y={y + rowHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="var(--text)">{t(node.value)}</text>
+        {label && <text x={162} y={y + rowHeight / 2} dominantBaseline="central" fontSize="12" fill="var(--accent)">{t(label)}</text>}
       </g>;
     })}
-    {nodes.length === 0 && <text x={width / 2} y={(top + bottom) / 2} textAnchor="middle" fontSize="13" fill="var(--muted)">空队列</text>}
-    <text x={width / 2} y={bottom + 24} textAnchor="middle" fontSize="12" fill="var(--muted)">↑ 队尾入队</text>
+    {nodes.length === 0 && <text x={width / 2} y={(top + bottom) / 2} textAnchor="middle" fontSize="13" fill="var(--muted)">{t("空队列")}</text>}
+    <text x={width / 2} y={bottom + 24} textAnchor="middle" fontSize="12" fill="var(--muted)">{t("↑ 队尾入队")}</text>
   </svg>;
 }
 
 function StackSvg({ scene, compact = false }: { scene: Scene; compact?: boolean }) {
+  const t = useTranslate();
   const callStack = scene.layout === 'call-stack';
   const width = callStack ? 480 : 360;
   const opening = 48;
@@ -534,9 +536,9 @@ function StackSvg({ scene, compact = false }: { scene: Scene; compact?: boolean 
 
   return (
     <svg className="stack-svg" viewBox={compact ? `${callStack ? '104 0 340' : '90 0 270'} ${height}` : `0 0 ${width} ${height}`} width={compact ? callStack ? 340 : 270 : '100%'} height={height} role="img"
-      aria-label={callStack ? `递归调用栈，当前 ${top === null ? '空' : scene.nodes[top].value}` : top === null ? `顺序栈，容量 ${capacity}，空栈，top 等于负一` : `顺序栈，容量 ${capacity}，栈顶下标 ${top}`}>
-      <text x={width / 2} y={26} textAnchor="middle" fontSize="13" fill="var(--muted)">{callStack ? '递归调用 ↓ 压栈 · 返回 ↑ 出栈' : '↓ 入栈 · ↑ 出栈'}</text>
-      <text x={left - 25} y={opening - 7} textAnchor="middle" fontSize="11" fill="var(--muted)">{callStack ? '层数' : '下标'}</text>
+      aria-label={t(callStack ? `递归调用栈，当前 ${top === null ? '空' : scene.nodes[top].value}` : top === null ? `顺序栈，容量 ${capacity}，空栈，top 等于负一` : `顺序栈，容量 ${capacity}，栈顶下标 ${top}`)}>
+      <text x={width / 2} y={26} textAnchor="middle" fontSize="13" fill="var(--muted)">{t(callStack ? '递归调用 ↓ 压栈 · 返回 ↑ 出栈' : '↓ 入栈 · ↑ 出栈')}</text>
+      <text x={left - 25} y={opening - 7} textAnchor="middle" fontSize="11" fill="var(--muted)">{t(callStack ? '层数' : '下标')}</text>
       <path d={`M${left - wallGap} ${opening} V${bottom} H${right + wallGap} V${opening}`}
         fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       {Array.from({ length: capacity }, (_, index) => {
@@ -551,24 +553,25 @@ function StackSvg({ scene, compact = false }: { scene: Scene; compact?: boolean 
           <text x={left - 25} y={y + slotHeight / 2} dominantBaseline="central" textAnchor="middle"
             fontSize="12" fontFamily="monospace" fill="var(--muted)">{callStack ? index + 1 : index}</text>
           {occupied && <text x={width / 2} y={y + slotHeight / 2} dominantBaseline="central" textAnchor="middle"
-            fontSize="15" fontFamily="monospace" fill="var(--text)">{cell.value}</text>}
+            fontSize="15" fontFamily="monospace" fill="var(--text)">{t(cell.value)}</text>}
         </g>;
       })}
       {topY === null ? (
-        <text x={right + 24} y={bottom + 23} fontSize="12" fill="var(--muted)">{callStack ? '调用栈为空' : 'top = -1（空栈）'}</text>
+        <text x={right + 24} y={bottom + 23} fontSize="12" fill="var(--muted)">{t(callStack ? '调用栈为空' : 'top = -1（空栈）')}</text>
       ) : (
         <g>
           <path d={`M${right + 38} ${topY} H${right + 3} m5 -4 l-5 4 5 4`}
             fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          <text x={right + 44} y={topY} dominantBaseline="central" fontSize="13" fill="var(--accent)">{callStack ? '当前调用' : `top = ${top}`}</text>
+          <text x={right + 44} y={topY} dominantBaseline="central" fontSize="13" fill="var(--accent)">{t(callStack ? '当前调用' : `top = ${top}`)}</text>
         </g>
       )}
-      <text x={width / 2} y={bottom + 23} textAnchor="middle" fontSize="12" fill="var(--muted)">栈底</text>
+      <text x={width / 2} y={bottom + 23} textAnchor="middle" fontSize="12" fill="var(--muted)">{t("栈底")}</text>
     </svg>
   );
 }
 
 function RingQueueSvg({ scene }: { scene: Scene }) {
+  const t = useTranslate();
   const markerId = useId();
   const width = 420;
   const height = 346;
@@ -583,7 +586,7 @@ function RingQueueSvg({ scene }: { scene: Scene }) {
   const marker = (suffix: string) => `url(#${markerId}-${suffix})`;
 
   return (
-    <svg className="ring-queue-svg" viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label="循环队列，槽位顺时针排列">
+    <svg className="ring-queue-svg" viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label={t("循环队列，槽位顺时针排列")}>
       <defs>
         {['default', 'accent'].map((style) => (
           <marker key={style} id={`${markerId}-${style}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
@@ -610,16 +613,16 @@ function RingQueueSvg({ scene }: { scene: Scene }) {
           <circle cx={slot.x} cy={slot.y} r={21}
             fill={node.value === '' ? 'none' : color.fill} stroke={node.value === '' ? 'var(--faint)' : color.stroke}
             strokeDasharray={node.value === '' ? '3 3' : undefined} />
-          <text x={slot.x} y={slot.y} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="var(--text)">{node.value}</text>
+          <text x={slot.x} y={slot.y} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="var(--text)">{t(node.value)}</text>
           <text x={subscript.x} y={subscript.y} textAnchor="middle" dominantBaseline="central" fontSize="12" fontFamily="monospace" fill="var(--muted)">{index}</text>
           {pointers.length > 0 && <g>
             <path d={`M${pointerStart.x} ${pointerStart.y} L${pointerEnd.x} ${pointerEnd.y}`} fill="none" stroke="var(--accent)" strokeWidth="1.5" markerEnd={marker('accent')} />
-            <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="central" fontSize="12" fontFamily="monospace" fill="var(--accent)">{pointers.join(' · ')}</text>
+            <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="central" fontSize="12" fontFamily="monospace" fill="var(--accent)">{t(pointers.join(' · '))}</text>
           </g>}
         </g>;
       })}
-      <text x={centerX} y={centerY} textAnchor="middle" dominantBaseline="central" fontSize="13" fill="var(--muted)">顺时针回绕</text>
-      <text x={centerX} y={height - 12} textAnchor="middle" fontSize="12" fill="var(--muted)">front 出队 · rear 入队</text>
+      <text x={centerX} y={centerY} textAnchor="middle" dominantBaseline="central" fontSize="13" fill="var(--muted)">{t("顺时针回绕")}</text>
+      <text x={centerX} y={height - 12} textAnchor="middle" fontSize="12" fill="var(--muted)">{t("front 出队 · rear 入队")}</text>
     </svg>
   );
 }
@@ -627,6 +630,7 @@ function RingQueueSvg({ scene }: { scene: Scene }) {
 function ListArrows({ scene, links, x0, y, cellWidth, cellHeight, gap, arrow }: {
   scene: Scene; links: ListLink[]; x0: number; y: number; cellWidth: number; cellHeight: number; gap: number; arrow: string;
 }) {
+  const t = useTranslate();
   const indices = new Map(scene.nodes.map((node, index) => [node.id, index]));
   const stepWidth = cellWidth + gap;
   const bottom = y + cellHeight;
@@ -660,7 +664,7 @@ function ListArrows({ scene, links, x0, y, cellWidth, cellHeight, gap, arrow }: 
         }
       }
       return <g key={`${from}:${field}`}>
-        <title>{title}</title>
+        <title>{t(title)}</title>
         <path d={path} fill="none" stroke="#5F5E5A" strokeWidth="1.5" strokeLinejoin="round" markerEnd={arrow} />
         {to === null && <text x={startX} y={bottom + gap + 14} textAnchor="middle" fontSize="11" fill="#5F5E5A" fontFamily="monospace">NULL</text>}
       </g>;
@@ -670,6 +674,7 @@ function ListArrows({ scene, links, x0, y, cellWidth, cellHeight, gap, arrow }: 
 
 /** 数组 / 链表：按固定步长排列；cols > 1 时折成二维网格（矩阵、哈希表）。 */
 function LinearSvg({ scene }: { scene: Scene }) {
+  const t = useTranslate();
   const arrowId = useId();
   const arrow = `url(#${arrowId})`;
   const stringMatch = scene.layout === 'string-match';
@@ -695,7 +700,7 @@ function LinearSvg({ scene }: { scene: Scene }) {
   const showIndex = !grid;
 
   return (
-    <svg className={matrix ? 'matrix-svg' : undefined} viewBox={`0 0 ${width} ${height}`} width={matrix || stackSequence ? width : '100%'} role="img" aria-label={isCircular ? '循环链表，尾结点指回首结点' : '当前步骤的数据结构状态'}>
+    <svg className={matrix ? 'matrix-svg' : undefined} viewBox={`0 0 ${width} ${height}`} width={matrix || stackSequence ? width : '100%'} role="img" aria-label={t(isCircular ? '循环链表，尾结点指回首结点' : '当前步骤的数据结构状态')}>
       <defs>
         <marker id={arrowId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -705,16 +710,16 @@ function LinearSvg({ scene }: { scene: Scene }) {
       {boundaryPointers.map(({ label, outside }) => {
         const x = outside! < 0 ? x0 / 2 : x0 + cols * (cw + gap) + 20;
         return <g key={label}>
-          <text x={x} y={y0 - 22} textAnchor="middle" fontSize="12" fill="#3C3489">{label} = {outside}</text>
+          <text x={x} y={y0 - 22} textAnchor="middle" fontSize="12" fill="#3C3489">{t(label)} = {outside}</text>
           <path d={`M${x} ${y0 - 18} V${y0 - 4}`} fill="none" stroke="#534AB7" markerEnd={arrow} />
-          <text x={x} y={y0 + cellHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="12" fill="var(--muted)">越界</text>
+          <text x={x} y={y0 + cellHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="12" fill="var(--muted)">{t("越界")}</text>
         </g>;
       })}
       {matrix && scene.pointers?.filter((pointer) => pointer.axis !== 'row' && pointer.index !== null).map((pointer) => {
         const column = pointer.index! % cols;
         const x = x0 + column * (cw + gap) + cw / 2;
         return <g key={pointer.label}>
-          <text x={x} y={y0 - 22} textAnchor="middle" fontSize="12" fill="#3C3489" fontFamily="monospace">{pointer.label} = {column}</text>
+          <text x={x} y={y0 - 22} textAnchor="middle" fontSize="12" fill="#3C3489" fontFamily="monospace">{t(pointer.label)} = {column}</text>
           <path d={`M${x} ${y0 - 18} V${y0 - 4}`} fill="none" stroke="#534AB7" strokeWidth="1.5" markerEnd={arrow} />
         </g>;
       })}
@@ -723,12 +728,12 @@ function LinearSvg({ scene }: { scene: Scene }) {
       {listLinks && nullPointers.length > 0 && (
         <text x={scene.nodes.length > 0 ? width - x0 : x0} y={scene.nodes.length > 0 ? 20 : y0 + 27}
           textAnchor={scene.nodes.length > 0 ? 'end' : 'start'} fontSize="12" fill="#3C3489" fontFamily="monospace">
-          {nullPointers.map((pointer) => `${pointer} → NULL`).join(' · ')}
+          {t(nullPointers.map((pointer) => `${pointer} → NULL`).join(' · '))}
         </text>
       )}
       {stringMatch && ['主串', '模式串'].map((label, index) => (
         <text key={label} x={x0 - 10} y={y0 + index * rowH + cellHeight / 2} textAnchor="end"
-          dominantBaseline="central" fontSize="12" fill="var(--muted)">{label}</text>
+          dominantBaseline="central" fontSize="12" fill="var(--muted)">{t(label)}</text>
       ))}
 
       {scene.nodes.map((n, idx) => {
@@ -754,33 +759,33 @@ function LinearSvg({ scene }: { scene: Scene }) {
           }}>
             {labels.length > 0 && (
               <text x={cw / 2} y={-30} textAnchor="middle" fontSize="12" fill="#3C3489" fontFamily="monospace">
-                {labels.join(' ')}
+                {t(labels.join(' '))}
               </text>
             )}
             {labels.length > 0 && (
               <path d={`M${cw / 2} -26 V-6`} fill="none" stroke="#534AB7" strokeWidth="1" markerEnd={arrow} />
             )}
             {rowPointer && <g>
-              <text x={-28} y={cellHeight / 2} textAnchor="end" dominantBaseline="central" fontSize="12" fill="#3C3489" fontFamily="monospace">{rowPointer.label} = {r}</text>
+              <text x={-28} y={cellHeight / 2} textAnchor="end" dominantBaseline="central" fontSize="12" fill="#3C3489" fontFamily="monospace">{t(rowPointer.label)} = {r}</text>
               <path d={`M-24 ${cellHeight / 2} H-4`} fill="none" stroke="#534AB7" strokeWidth="1.5" markerEnd={arrow} />
             </g>}
             <rect x={0} y={0} width={cw} height={cellHeight} rx={8} strokeWidth="1" style={{ fill: col.fill, stroke: col.stroke, transition: 'fill 200ms ease, stroke 200ms ease' }} />
             <text x={cw / 2} y={cellHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="#2C2C2A">
-              {n.value}
+              {t(n.value)}
             </text>
             {showIndex && (
               <text x={cw / 2} y={60} textAnchor="middle" fontSize="11" fill="#5F5E5A" fontFamily="monospace">
-                {isList ? (n.label ?? '') : String(idx)}
+                {t(isList ? (n.label ?? '') : String(idx))}
               </text>
             )}
             {!showIndex && n.label && (
               <text x={cw / 2} y={60} textAnchor="middle" fontSize="11" fill="#5F5E5A" fontFamily="monospace">
-                {n.label}
+                {t(n.label)}
               </text>
             )}
             {n.label && !isList && showIndex && (
               <text x={cw / 2} y={76} textAnchor="middle" fontSize="11" fill="#993C1D" fontFamily="monospace">
-                {n.label}
+                {t(n.label)}
               </text>
             )}
             {isList && !listLinks && (
@@ -805,7 +810,7 @@ function LinearSvg({ scene }: { scene: Scene }) {
           {!isCircular && <text x={x0 + scene.nodes.length * (cw + gap) + 2} y={y0 + 27} fontSize="12" fill="#5F5E5A" fontFamily="monospace">NULL</text>}
           {nullPointers.length > 0 && (
             <text x={x0 + scene.nodes.length * (cw + gap) + 2} y={y0 - 30} fontSize="12" fill="#3C3489" fontFamily="monospace">
-              {nullPointers.join(' ')} → NULL
+              {t(nullPointers.join(' '))} → NULL
             </text>
           )}
         </g>

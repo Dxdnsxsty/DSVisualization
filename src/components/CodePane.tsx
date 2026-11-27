@@ -1,3 +1,4 @@
+import { useTranslate } from '../i18n';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlayer } from '../engine/player';
@@ -9,10 +10,16 @@ import type { AlgorithmMeta, TraceStep } from '../engine/types';
 const LANG_LABEL: Record<string, string> = { cpp: 'C++', python: 'Python' };
 
 export function CodePane({ algo }: { algo: AlgorithmMeta }) {
+  const t = useTranslate();
   const p = usePlayer(useShallow(({ lang, input, setLang, jumpToAnchor }) => ({ lang, input, setLang, jumpToAnchor })));
   const lines = algo.code[p.lang] ?? algo.code.cpp;
   const activeAnchor = usePlayer((state) => state.trace[state.step]?.anchor);
   const tokenLines = useMemo(() => lines.map((line) => tokenize(line.text, p.lang)), [lines, p.lang]);
+  const displayToken = (token: ReturnType<typeof tokenize>[number]) =>
+    token.kind === 'comment'
+      ? token.text.replace(/^(\/\/|#)(\s*)(.*)$/, (_, marker, gap, comment) => marker + gap + t(comment))
+      : token.text;
+  const displayCode = () => tokenLines.map((line) => line.map(displayToken).join('')).join('\n');
   const [copied, setCopied] = useState(false);
 
   const boxRef = useRef<HTMLDivElement>(null);
@@ -61,7 +68,7 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(lines.map((l) => l.text).join('\n'));
+      await navigator.clipboard.writeText(displayCode());
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -72,46 +79,52 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
   const download = () => {
     const ext = p.lang === 'python' ? 'py' : 'cpp';
     const prefix = p.lang === 'python' ? '# ' : '// ';
-    const [main, pattern] = algo.input?.format === 'string-match' ? decodeMatchInput(p.input) : [];
-    const graph = algo.customGraph ? decodeCustomGraph(p.input) : undefined;
-    let example = p.input.join(', ');
-    if (main !== undefined) example = `主串 ${main}，模式串 ${pattern}`;
-    if (algo.input?.format === 'tree-level') example = formatTreeInput(p.input);
-    if (graph) {
-      const weighted = algo.customGraph === 'weighted' || algo.customGraph === 'weighted-signed';
-      const separator = algo.customGraph === 'undirected' ? '–' : '→';
-      const edges = graph.edges.map(([from, to, weight]) =>
-        `${graph.labels[from]}${separator}${graph.labels[to]}${weighted ? ` (${weight})` : ''}`);
-      const source = algo.customGraph === 'directed' ? '' : `，起点 ${graph.labels[graph.source]}`;
-      example = `顶点 ${graph.labels.join(', ')}${source}，边 ${edges.join(', ') || '无'}`;
-    }
-    const code = lines.map((l) => l.text).join('\n');
-    const program = algo.runnable?.(p.lang, p.input, code) ?? code;
-    const text = `${prefix}${algo.title} · DS·Visual 教学示例\n${prefix}输入示例：${example}\n\n${program}\n`;
+    const code = displayCode();
+    const title = `${prefix}${t(algo.title)}`;
+    const example = t(formatExampleInput(algo, p.input));
+    const text = algo.runnable
+      ? `${title} ${t('· DS·Visual 教学示例')}\n${prefix}${t('输入示例：')}${example}\n\n${algo.runnable(p.lang, p.input, code)}\n`
+      : `${title} ${t('· DS·Visual 教学片段')}\n${prefix}${t('动画输入（供参考）：')}${example}\n\n${code}\n`;
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url; a.download = `${algo.slug.replace('/', '-')}.${ext}`; a.click();
     URL.revokeObjectURL(url);
   };
 
+  function formatExampleInput(algo: AlgorithmMeta, input: number[]) {
+    const [main, pattern] = algo.input?.format === 'string-match' ? decodeMatchInput(input) : [];
+    const graph = algo.customGraph ? decodeCustomGraph(input) : undefined;
+    if (main !== undefined) return `主串 ${main}，模式串 ${pattern}`;
+    if (algo.input?.format === 'tree-level') return formatTreeInput(input);
+    if (graph) {
+      const weighted = algo.customGraph === 'weighted' || algo.customGraph === 'weighted-signed';
+      const separator = algo.customGraph === 'undirected' ? '–' : '→';
+      const edges = graph.edges.map(([from, to, weight]) =>
+        `${graph.labels[from]}${separator}${graph.labels[to]}${weighted ? ` (${weight})` : ''}`);
+      const source = algo.customGraph === 'directed' ? '' : `，起点 ${graph.labels[graph.source]}`;
+      return `顶点 ${graph.labels.join(', ')}${source}，边 ${edges.join(', ') || '无'}`;
+    }
+    return input.join(', ');
+  }
+
   return (
     <section className="panel code-panel">
       <header className="panel-head code-head">
-        <span className="code-title">代码</span>
+        <span className="code-title">{t("代码")}</span>
         <span className="panel-actions">
           {Object.keys(algo.code).map((lang) => (
             <button key={lang} className={p.lang === lang ? 'mini active' : 'mini'} onClick={() => p.setLang(lang)}>
-              {LANG_LABEL[lang] ?? lang}
+              {t(LANG_LABEL[lang] ?? lang)}
             </button>
           ))}
         </span>
       </header>
 
       <div className="code-toolbar">
-        <span>当前执行：<code>{activeAnchor ?? '—'}</code></span>
+        <span>{t("当前执行：")}<code>{t(activeAnchor ?? '—')}</code></span>
         <span className="panel-actions">
-          <button className="mini" onClick={copy}>{copied ? '已复制' : '复制'}</button>
-          <button className="mini" onClick={download}>下载</button>
+          <button className="mini" onClick={copy}>{t(copied ? '已复制' : '复制')}</button>
+          <button className="mini" onClick={download}>{t("下载")}</button>
         </span>
       </div>
 
@@ -130,45 +143,46 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
                 p.jumpToAnchor(line.anchor);
               }
             }}
-            title={line.anchor ? `跳到锚点 ${line.anchor} 对应的步骤` : undefined}
+            title={t(line.anchor ? `跳到锚点 ${line.anchor} 对应的步骤` : undefined)}
           >
             <span className="ln">{i + 1}</span>
             <code>
-              {tokenLines[i].map((t, j) => (
-                <span key={j} className={`tok-${t.kind}`}>{t.text}</span>
+              {tokenLines[i].map((token, j) => (
+                <span key={j} className={`tok-${token.kind}`}>{displayToken(token)}</span>
               ))}
             </code>
           </div>
         ))}
       </div>
 
-      <div className="code-foot">点击带高亮标记的代码行，可直接跳到对应动画步骤。</div>
+      <div className="code-foot">{t("点击带高亮标记的代码行，可直接跳到对应动画步骤。")}</div>
     </section>
   );
 }
 
 export function VarPane({ step }: { step: TraceStep }) {
+  const t = useTranslate();
   const [tab, setTab] = useState<'vars' | 'stack'>('vars');
   return (
     <section className="panel var-panel">
       <header className="panel-head">
-        <span>变量 / 调用栈</span>
+        <span>{t("变量 / 调用栈")}</span>
         <span className="panel-actions">
-          <button className={tab === 'vars' ? 'mini active' : 'mini'} onClick={() => setTab('vars')}>变量</button>
-          <button className={tab === 'stack' ? 'mini active' : 'mini'} onClick={() => setTab('stack')}>调用栈</button>
+          <button className={tab === 'vars' ? 'mini active' : 'mini'} onClick={() => setTab('vars')}>{t("变量")}</button>
+          <button className={tab === 'stack' ? 'mini active' : 'mini'} onClick={() => setTab('stack')}>{t("调用栈")}</button>
         </span>
       </header>
       {tab === 'vars' ? (
         <div className="var-grid">
           {Object.entries(step.vars).map(([k, v]) => (
-            <div key={k} className="var-item"><span>{k}</span><code>{String(v)}</code></div>
+            <div key={k} className="var-item"><span>{t(k)}</span><code>{t(String(v))}</code></div>
           ))}
         </div>
       ) : (
         <div className="var-empty">
-          {step.callStack?.length
-            ? step.callStack.map((f, i) => <div key={i} className="stack-frame">#{i} {f}</div>)
-            : '当前步骤没有活动的递归调用。'}
+          {t(step.callStack?.length
+            ? step.callStack.map((f, i) => <div key={i} className="stack-frame">#{i} {t(f)}</div>)
+            : '当前步骤没有活动的递归调用。')}
         </div>
       )}
     </section>

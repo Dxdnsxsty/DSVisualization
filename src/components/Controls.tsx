@@ -1,3 +1,4 @@
+import { useTranslate } from '../i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlayer } from '../engine/player';
@@ -10,6 +11,7 @@ import { hasCustomPracticeQuestion, supportsCustomPractice } from '../engine/pra
 import { exerciseReplayPath, navigate } from '../engine/router';
 
 export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
+  const t = useTranslate();
   const p = usePlayer(useShallow(({ trace, step, playing, speed, setStep, prev, next, toggle, setSpeed }) =>
     ({ trace, step, playing, speed, setStep, prev, next, toggle, setSpeed })));
   const cur = p.trace[p.step];
@@ -31,17 +33,17 @@ export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
   return (
     <div className="panel controls-panel">
       <div className="caption" aria-live="polite">
-        <span className="step-no">步骤 {p.step + 1} / {total}</span>
-        <span className="phase-tag">{cur?.phase ?? '—'}</span>
-        <span className="caption-text">{cur?.caption ?? '正在生成步骤…'}</span>
+        <span className="step-no">{t("步骤 ")}{p.step + 1} / {total}</span>
+        <span className="phase-tag">{t(cur?.phase ?? '—')}</span>
+        <span className="caption-text">{t(cur?.caption ?? '正在生成步骤…')}</span>
       </div>
 
       <div className="controls">
-        <button onClick={() => p.setStep(0)} title="跳到开头 (Home)">|◀</button>
-        <button onClick={p.prev} title="上一步 (←)">◀</button>
-        <button className="primary" onClick={p.toggle} title="播放 / 暂停 (空格)">{p.playing ? '暂停' : '播放'}</button>
-        <button onClick={p.next} title="下一步 (→)">▶</button>
-        <button onClick={() => p.setStep(total - 1)} title="跳到结尾 (End)">▶|</button>
+        <button onClick={() => p.setStep(0)} title={t("跳到开头 (Home)")}>|◀</button>
+        <button onClick={p.prev} title={t("上一步 (←)")}>◀</button>
+        <button className="primary" onClick={p.toggle} title={t("播放 / 暂停 (空格)")}>{t(p.playing ? '暂停' : '播放')}</button>
+        <button onClick={p.next} title={t("下一步 (→)")}>▶</button>
+        <button onClick={() => p.setStep(total - 1)} title={t("跳到结尾 (End)")}>▶|</button>
         <input
           className="progress"
           type="range"
@@ -49,9 +51,9 @@ export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
           max={Math.max(0, total - 1)}
           value={p.step}
           onChange={(e) => p.setStep(Number(e.target.value))}
-          aria-label="播放进度"
+          aria-label={t("播放进度")}
         />
-        <select value={p.speed} onChange={(e) => p.setSpeed(Number(e.target.value))} aria-label="播放速度">
+        <select value={p.speed} onChange={(e) => p.setSpeed(Number(e.target.value))} aria-label={t("播放速度")}>
           <option value={0.5}>0.5×</option>
           <option value={1}>1×</option>
           <option value={2}>2×</option>
@@ -60,10 +62,10 @@ export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
       </div>
 
       {!fullscreen && <div className="phase-chips">
-        <span className="muted">阶段跳转</span>
+        <span className="muted">{t("阶段跳转")}</span>
         {phases.map((ph) => (
           <button key={ph.name} className={cur?.phase === ph.name ? 'chip active' : 'chip'} onClick={() => p.setStep(ph.index)}>
-            {ph.name}
+            {t(ph.name)}
           </button>
         ))}
       </div>}
@@ -72,16 +74,17 @@ export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
         <button type="button" className="mini" disabled={!canPractice} onClick={() => {
         const { slug, input, step } = usePlayer.getState();
         navigate(exerciseReplayPath({ slug, input, step }));
-        }}>用这组数据练习</button>
-        {!canPractice && <span className="muted">{slug === 'tree/inorder'
+        }}>{t("用这组数据练习")}</button>
+        {!canPractice && <span className="muted">{t(slug === 'tree/inorder'
           ? '至少需要两个不同的结点值，才能生成选择题。'
-          : '这张图没有可出题的选点或松弛步骤。'}</span>}
+          : '这张图没有可出题的选点或松弛步骤。')}</span>}
       </div>}
     </div>
   );
 }
 
 export function InputBar({ algo }: { algo: AlgorithmMeta }) {
+  const t = useTranslate();
   const { input, regenerate } = usePlayer(useShallow((state) => ({
     input: state.slug === algo.slug ? state.input : algo.defaultInput,
     regenerate: state.regenerate,
@@ -143,13 +146,13 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
   if (treeLevel) {
     const count = levelTree(input).vals.length;
     return (
-      <section className="panel graph-input" aria-label="树输入">
+      <section className="panel graph-input" aria-label={t("树输入")}>
         <div className="graph-input-bar">
-          <div className="graph-input-status"><strong>树输入</strong><span className="muted" role="status">{count} 个结点</span></div>
+          <div className="graph-input-status"><strong>{t("树输入")}</strong><span className="muted" role="status">{count}{t(" 个结点")}</span></div>
           <div className="graph-input-options">
-            <button type="button" onClick={random}>随机</button>
-            <button type="button" onClick={() => applyInput(algo.defaultInput)}>默认</button>
-            <button type="button" ref={customTrigger} aria-haspopup="dialog" onClick={() => setCustomOpen(true)}>自定义二叉树</button>
+            <button type="button" onClick={random}>{t("随机")}</button>
+            <button type="button" onClick={() => applyInput(algo.defaultInput)}>{t("默认")}</button>
+            <button type="button" ref={customTrigger} aria-haspopup="dialog" onClick={() => setCustomOpen(true)}>{t("自定义二叉树")}</button>
           </div>
         </div>
         {customOpen && <CustomTreeDialog input={input} regenerate={regenerate} onClose={() => {
@@ -164,48 +167,48 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
   const presetForm = (
       <form className={algo.customGraph ? 'input-panel' : 'panel input-panel'} onSubmit={(event) => { event.preventDefault(); apply(); }}>
         <div className="input-row">
-          <label htmlFor="dsv-input">{stringMatch ? '主串' : graphSize ? '顶点数量' : '自定义数据'}</label>
+          <label htmlFor="dsv-input">{t(stringMatch ? '主串' : graphSize ? '顶点数量' : '自定义数据')}</label>
           <input id="dsv-input" value={draft[0]} onChange={(e) => setDraft([e.target.value, draft[1]])}
             placeholder={stringMatch ? 'abababc' : '20, 60, 30, 10, 40'} spellCheck={stringMatch ? false : undefined} />
           {stringMatch && <>
-            <label htmlFor="dsv-pattern">模式串</label>
+            <label htmlFor="dsv-pattern">{t("模式串")}</label>
             <input id="dsv-pattern" value={draft[1]} onChange={(e) => setDraft([draft[0], e.target.value])} placeholder="abc" spellCheck={false} />
           </>}
-          <button className="primary" type="submit">生成动画</button>
-          <button type="button" onClick={random}>随机</button>
+          <button className="primary" type="submit">{t("生成动画")}</button>
+          <button type="button" onClick={random}>{t("随机")}</button>
           <button type="button" onClick={() => {
             setDraft(inputDraft(algo.defaultInput));
             applyInput(algo.defaultInput);
-          }}>默认</button>
+          }}>{t("默认")}</button>
         </div>
-        {algo.graphCases && <div className="graph-cases" aria-label="图案例">
+        {algo.graphCases && <div className="graph-cases" aria-label={t("图案例")}>
           {algo.graphCases.map((example) => <button type="button" key={example.id}
             className={!graphIsCustom && (preset[1] ?? 0) === example.id ? 'chip active' : 'chip'}
             aria-pressed={!graphIsCustom && (preset[1] ?? 0) === example.id}
-            onClick={() => applyInput([preset[0], example.id])}>{example.label}</button>)}
-          {!graphIsCustom && <span className="muted">{presetCase?.description}</span>}
+            onClick={() => applyInput([preset[0], example.id])}>{t(example.label)}</button>)}
+          {!graphIsCustom && <span className="muted">{t(presetCase?.description)}</span>}
         </div>}
         <div className="input-hint">
-          {error ? <span className="error" role="alert">{error}</span> : <span className="muted">{algo.inputHint}</span>}
+          {error ? <span className="error" role="alert">{t(error)}</span> : <span className="muted">{t(algo.inputHint)}</span>}
         </div>
       </form>
   );
   if (!algo.customGraph) return presetForm;
 
   return (
-    <section className="panel graph-input" aria-label="图输入">
+    <section className="panel graph-input" aria-label={t("图输入")}>
       <div className="graph-input-bar">
         <div className="graph-input-status">
-          <strong>图输入</strong>
-          <span className="muted" role="status">{graphIsCustom ? `自定义 · ${input[1]} 个顶点` : `${presetCase?.label ?? '预设'} · ${preset[0]} 个顶点`}</span>
+          <strong>{t("图输入")}</strong>
+          <span className="muted" role="status">{t(graphIsCustom ? `自定义 · ${input[1]} 个顶点` : `${presetCase?.label ?? '预设'} · ${preset[0]} 个顶点`)}</span>
         </div>
         <div className="graph-input-options">
           <button type="button" ref={presetTrigger} aria-controls="dsv-preset-graph" aria-expanded={presetOpen}
-            onClick={() => setPresetOpen((open) => !open)}>{presetOpen ? '收起预设' : '预设案例'}</button>
+            onClick={() => setPresetOpen((open) => !open)}>{t(presetOpen ? '收起预设' : '预设案例')}</button>
           <button type="button" ref={customTrigger} aria-haspopup="dialog" onClick={() => {
             setPresetOpen(false);
             setCustomOpen(true);
-          }}>自定义图</button>
+          }}>{t("自定义图")}</button>
         </div>
       </div>
       <div id="dsv-preset-graph" className="graph-input-body" hidden={!presetOpen}>{presetForm}</div>

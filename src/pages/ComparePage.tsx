@@ -1,3 +1,4 @@
+import { useTranslate } from '../i18n';
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import { algorithms, getAlgorithm } from '../algorithms/registry';
 import { Stage } from '../components/Stage';
@@ -19,23 +20,24 @@ function comparisonError(input: number[], pair: AlgorithmMeta[]): string | null 
 function Pane({ algo, trace, step, onLearn, onSeek }: {
   algo: AlgorithmMeta; trace: TraceStep[]; step: number; onLearn: () => void; onSeek: (step: number) => void;
 }) {
+  const t = useTranslate();
   const cur = trace[step];
   const final = trace[trace.length - 1];
   return (
     <section className="panel compare-pane">
-      <div className="panel-head"><span>{algo.title}</span><button className="mini" onClick={onLearn}>单独学习</button></div>
+      <div className="panel-head"><span>{t(algo.title)}</span><button className="mini" onClick={onLearn}>{t("单独学习")}</button></div>
       <Stage scene={cur.scene} />
-      <div className="compare-caption">步骤 {step + 1} / {trace.length} · {cur.caption}</div>
-      <input className="progress" type="range" min={0} max={trace.length - 1} value={step} onChange={(e) => onSeek(Number(e.target.value))} aria-label={`${algo.title}播放进度`} />
+      <div className="compare-caption">{t("步骤 ")}{step + 1} / {trace.length} · {t(cur.caption)}</div>
+      <input className="progress" type="range" min={0} max={trace.length - 1} value={step} onChange={(e) => onSeek(Number(e.target.value))} aria-label={t(`${algo.title}播放进度`)} />
       <div className="compare-metrics">
         {cur.metrics ? <>
-          <span>累计比较 <b>{cur.metrics.comparisons}</b></span>
-          <span>累计交换 <b>{cur.metrics.swaps}</b></span>
-          <span>累计写入 <b>{cur.metrics.writes}</b></span>
-          <span>其中原数组 <b>{cur.metrics.writes - (cur.metrics.auxiliaryWrites ?? 0)}</b> · 辅助数组/桶 <b>{cur.metrics.auxiliaryWrites ?? 0}</b></span>
-        </> : <span>此算法尚未接入操作统计</span>}
-        <span>步骤数 <b>{trace.length}</b></span>
-        <span>终态 <code>{final.scene.nodes.map((n) => n.value).filter(Boolean).join(', ')}</code></span>
+          <span>{t("累计比较 ")}<b>{cur.metrics.comparisons}</b></span>
+          <span>{t("累计交换 ")}<b>{cur.metrics.swaps}</b></span>
+          <span>{t("累计写入 ")}<b>{cur.metrics.writes}</b></span>
+          <span>{t("其中原数组 ")}<b>{cur.metrics.writes - (cur.metrics.auxiliaryWrites ?? 0)}</b>{t(" · 辅助数组/桶 ")}<b>{cur.metrics.auxiliaryWrites ?? 0}</b></span>
+        </> : <span>{t("此算法尚未接入操作统计")}</span>}
+        <span>{t("步骤数 ")}<b>{trace.length}</b></span>
+        <span>{t("终态 ")}<code>{t(final.scene.nodes.map((n) => n.value).filter(Boolean).join(', '))}</code></span>
       </div>
     </section>
   );
@@ -44,6 +46,7 @@ function Pane({ algo, trace, step, onLearn, onSeek }: {
 function Comparison({ left, right, input, initialSteps }: {
   left: AlgorithmMeta; right: AlgorithmMeta; input: number[]; initialSteps?: [number, number];
 }) {
+  const t = useTranslate();
   const traces = useMemo(() => [left.generate([...input]), right.generate([...input])] as const, [left, right, input]);
   const [state, dispatch] = useReducer(comparisonReducer, [traces[0].length, traces[1].length] as [number, number],
     (lengths) => createComparisonPlayback(lengths, initialSteps));
@@ -61,17 +64,17 @@ function Comparison({ left, right, input, initialSteps }: {
   }, [state.playing, state.steps, state.speed]);
 
   return <>
-    <section className="panel compare-controls" aria-label="同步播放控制">
-      <button onClick={() => dispatch({ type: 'reset' })}>重置</button>
-      <button disabled={state.steps.every((step) => step === 0)} onClick={() => dispatch({ type: 'prev' })}>上一步</button>
-      <button className="primary" aria-pressed={state.playing} onClick={() => dispatch({ type: 'toggle' })}>{state.playing ? '暂停' : finished ? '重新播放' : '同步播放'}</button>
-      <button disabled={finished} onClick={() => dispatch({ type: 'next' })}>下一步</button>
-      <label>播放速度 <select value={state.speed} onChange={(e) => dispatch({ type: 'speed', speed: Number(e.target.value) })}>
+    <section className="panel compare-controls" aria-label={t("同步播放控制")}>
+      <button onClick={() => dispatch({ type: 'reset' })}>{t("重置")}</button>
+      <button disabled={state.steps.every((step) => step === 0)} onClick={() => dispatch({ type: 'prev' })}>{t("上一步")}</button>
+      <button className="primary" aria-pressed={state.playing} onClick={() => dispatch({ type: 'toggle' })}>{t(state.playing ? '暂停' : finished ? '重新播放' : '同步播放')}</button>
+      <button disabled={finished} onClick={() => dispatch({ type: 'next' })}>{t("下一步")}</button>
+      <label>{t("播放速度 ")}<select value={state.speed} onChange={(e) => dispatch({ type: 'speed', speed: Number(e.target.value) })}>
         {[0.5, 1, 2, 4].map((speed) => <option key={speed} value={speed}>{speed}×</option>)}
       </select></label>
-      <span className="muted" role="status">{state.playing ? '播放中' : finished ? '两侧均已结束' : '已暂停'}</span>
+      <span className="muted" role="status">{t(state.playing ? '播放中' : finished ? '两侧均已结束' : '已暂停')}</span>
     </section>
-    <p className="muted">每次两侧各推进一个演示步骤，先结束的一侧停在终态。拖动任一侧进度会暂停播放；同步步数不代表实际运行速度。</p>
+    <p className="muted">{t("每次两侧各推进一个演示步骤，先结束的一侧停在终态。拖动任一侧进度会暂停播放；同步步数不代表实际运行速度。")}</p>
     <div className="compare-grid">
       <Pane algo={left} trace={traces[0]} step={state.steps[0]} onLearn={() => learn(0)} onSeek={(step) => dispatch({ type: 'seek', side: 0, step })} />
       <Pane algo={right} trace={traces[1]} step={state.steps[1]} onLearn={() => learn(1)} onSeek={(step) => dispatch({ type: 'seek', side: 1, step })} />
@@ -80,6 +83,7 @@ function Comparison({ left, right, input, initialSteps }: {
 }
 
 export function ComparePage({ comparison }: { comparison?: ComparisonReplay }) {
+  const t = useTranslate();
   const savedLeft = SORTS.find((algo) => algo.slug === comparison?.left);
   const savedRight = SORTS.find((algo) => algo.slug === comparison?.right);
   const saved = comparison && savedLeft && savedRight && !comparisonError(comparison.input, [savedLeft, savedRight]) ? comparison : undefined;
@@ -112,17 +116,17 @@ export function ComparePage({ comparison }: { comparison?: ComparisonReplay }) {
   };
   return (
     <main className="page compare-page">
-      <div className="page-intro"><h1>算法对比实验室</h1><p>同一组输入，并排观察不同算法的步骤数量、状态变化与最终结果。</p></div>
+      <div className="page-intro"><h1>{t("算法对比实验室")}</h1><p>{t("同一组输入，并排观察不同算法的步骤数量、状态变化与最终结果。")}</p></div>
       <form className="panel compare-controls" onSubmit={(e) => { e.preventDefault(); parse(); }}>
-        <label>共同输入 <input value={raw} onChange={(e) => setRaw(e.target.value)} aria-describedby="compare-input-status" /></label>
-        <button className="primary" type="submit">应用输入</button>
-        <label>左侧 <select value={left} onChange={(e) => selectAlgorithm('left', e.target.value)}>{SORTS.map((x) => <option key={x.slug} value={x.slug}>{x.title}</option>)}</select></label>
-        <label>右侧 <select value={right} onChange={(e) => selectAlgorithm('right', e.target.value)}>{SORTS.map((x) => <option key={x.slug} value={x.slug}>{x.title}</option>)}</select></label>
+        <label>{t("共同输入 ")}<input value={raw} onChange={(e) => setRaw(e.target.value)} aria-describedby="compare-input-status" /></label>
+        <button className="primary" type="submit">{t("应用输入")}</button>
+        <label>{t("左侧 ")}<select value={left} onChange={(e) => selectAlgorithm('left', e.target.value)}>{SORTS.map((x) => <option key={x.slug} value={x.slug}>{t(x.title)}</option>)}</select></label>
+        <label>{t("右侧 ")}<select value={right} onChange={(e) => selectAlgorithm('right', e.target.value)}>{SORTS.map((x) => <option key={x.slug} value={x.slug}>{t(x.title)}</option>)}</select></label>
       </form>
       <p id="compare-input-status" className={error ? 'error' : 'muted'} role={error ? 'alert' : undefined}>
-        {error ? `${error} 当前仍使用已应用的数据：${input.join(', ')}。` : `当前共同输入：${input.join(', ')}。修改后点击「应用输入」或按回车。`}
+        {t(error ? `${error} 当前仍使用已应用的数据：${input.join(', ')}。` : `当前共同输入：${input.join(', ')}。修改后点击「应用输入」或按回车。`)}
       </p>
-      <p className="muted">计数规则：只统计关键字比较和数据元素写入；累计写入包含原数组及辅助数组/桶，一次交换计 2 次写入，相同值写回也计数。临时变量、边界判断、数组初始化、清空和演示快照不计。基数排序按位分桶，不比较关键字大小，因此比较次数为 0；移位与填坑不计交换。操作次数和演示步骤数均不代表运行耗时。</p>
+      <p className="muted">{t("计数规则：只统计关键字比较和数据元素写入；累计写入包含原数组及辅助数组/桶，一次交换计 2 次写入，相同值写回也计数。临时变量、边界判断、数组初始化、清空和演示快照不计。基数排序按位分桶，不比较关键字大小，因此比较次数为 0；移位与填坑不计交换。操作次数和演示步骤数均不代表运行耗时。")}</p>
       {/* 成功应用数据或切换算法时，卸载旧播放器以取消计时并重置两侧。 */}
       <Comparison key={revision} left={a} right={b} input={input} initialSteps={revision === 0 ? saved?.steps : undefined} />
     </main>

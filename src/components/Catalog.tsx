@@ -1,3 +1,4 @@
+import { useTranslate } from '../i18n';
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { algorithms, categories, getAlgorithm } from '../algorithms/registry';
 import { navigate } from '../engine/router';
@@ -42,6 +43,7 @@ export function markLearned(slug: string): void {
 }
 
 export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNavigate?: () => void }) {
+  const t = useTranslate();
   const [query, setQuery] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
   const snapshot = useSyncExternalStore(subscribeLearned, learnedSnapshot, () => '[]');
@@ -56,28 +58,28 @@ export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNa
     const item = current.getBoundingClientRect();
     if (item.top < viewport.top) list.scrollTop += item.top - viewport.top;
     else if (item.bottom > viewport.bottom) list.scrollTop += item.bottom - viewport.bottom;
-  }, [currentSlug, q]);
+  }, [currentSlug, q, t]);
 
   return (
-    <nav className="panel catalog" aria-label="课程章节目录">
-      <div className="panel-head"><span>课程章节</span></div>
+    <nav className="panel catalog" aria-label={t("课程章节目录")}>
+      <div className="panel-head"><span>{t("课程章节")}</span></div>
       <input
         className="catalog-search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="搜索算法 / 章节"
-        aria-label="搜索算法"
+        placeholder={t("搜索算法 / 章节")}
+        aria-label={t("搜索算法")}
       />
       <div className="cat-scroll" ref={listRef}>
         {categories.map((cat) => {
           const items = cat.slugs.map(getAlgorithm).filter((a) => !!a);
-          const visible = items.filter((a) => matchesAlgorithm(a, cat.title, q));
+          const visible = items.filter((a) => matchesAlgorithm(a, cat.title, q, t));
           if (q && visible.length === 0 && !cat.title.toLowerCase().includes(q)) return null;
           return (
             <div className="cat-group" key={cat.id}>
               <div className="cat-title">
-                {cat.title}
-                {cat.stub && <span className="badge">{cat.stub}</span>}
+                {t(cat.title)}
+                {cat.stub && <span className="badge">{t(cat.stub)}</span>}
               </div>
               {visible.map((a) => (
                 <button
@@ -94,17 +96,15 @@ export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNa
                   }}
                 >
                   <span className={learned.has(a.slug) ? 'dot done' : 'dot'} />
-                  <span className="cat-name">{a.title}</span>
+                  <span className="cat-name">{t(a.title)}</span>
                 </button>
               ))}
-              {cat.stub && !q && <div className="cat-empty">本章节暂无可视化，欢迎提 PR 补充</div>}
+              {cat.stub && !q && <div className="cat-empty">{t("本章节暂无可视化，欢迎提 PR 补充")}</div>}
             </div>
           );
         })}
       </div>
-      <div className="catalog-foot">
-        已学 {learned.size} / {algorithms.length} · 进度仅保存在本机浏览器，无需登录
-      </div>
+      <div className="catalog-foot">{t("已学 ")}{learned.size} / {algorithms.length}{t(" · 进度仅保存在本机浏览器，无需登录")}</div>
     </nav>
   );
 }

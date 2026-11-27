@@ -1,3 +1,4 @@
+import { useTranslate } from '../i18n';
 import { useLayoutEffect, type RefObject } from 'react';
 import { getAlgorithm } from '../algorithms/registry';
 import { usePlayer } from '../engine/player';
@@ -31,6 +32,7 @@ function PlayerVariables() {
 }
 
 export function AlgorithmPage({ slug, comparison, stageRef, onFullscreen, fullscreenError, mobileTab, onNavigate }: Props) {
+  const t = useTranslate();
   const algo = getAlgorithm(slug);
 
   // 绘制前恢复滚动位置：配合 Catalog 里的 rememberScroll，连点算法时页面不跳回顶部
@@ -42,16 +44,16 @@ export function AlgorithmPage({ slug, comparison, stageRef, onFullscreen, fullsc
     <div className="workbench" data-tab={mobileTab}>
       <div className="grid">
         <header className="page-head">
-          <div className="breadcrumb">{algo.chapter} <span>/</span> {algo.title}</div>
+          <div className="breadcrumb">{t(algo.chapter)} <span>/</span> {t(algo.title)}</div>
           <div className="title-row">
-            <h1>{algo.title}</h1>
-            <span className="tag">{algo.complexity.time}</span>
-            <span className="tag">空间 {algo.complexity.space}</span>
-            {algo.complexity.extra && <span className="tag">{algo.complexity.extra}</span>}
-            <span className="tag soft">{algo.difficulty}</span>
-            {comparison && <button type="button" className="mini" onClick={() => navigate(comparisonReplayPath(comparison))}>返回对比</button>}
+            <h1>{t(algo.title)}</h1>
+            <span className="tag">{t(algo.complexity.time)}</span>
+            <span className="tag">{t("空间 ")}{t(algo.complexity.space)}</span>
+            {algo.complexity.extra && <span className="tag">{t(algo.complexity.extra)}</span>}
+            <span className="tag soft">{t(algo.difficulty)}</span>
+            {comparison && <button type="button" className="mini" onClick={() => navigate(comparisonReplayPath(comparison))}>{t("返回对比")}</button>}
           </div>
-          <p className="summary">{algo.summary}</p>
+          <p className="summary">{t(algo.summary)}</p>
         </header>
 
         <aside className="col col-left">
