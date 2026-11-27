@@ -37,6 +37,7 @@ test('讲解、自测和继续学习在桌面分栏，窄屏依次排列', async
   const desktop = testInfo.project.name === 'desktop';
   if (!desktop) await page.setViewportSize({ width: 320, height: 750 });
   await page.goto('/#/algo/sort/select-sort');
+  await expect(page.locator('.app > footer')).toHaveCount(0);
   if (!desktop) await page.locator('.mobile-tabs').getByRole('button', { name: '讲解', exact: true }).click();
   const panel = page.locator('.explain');
   await expect(panel.getByRole('heading', { name: '图文讲解' })).toBeVisible();

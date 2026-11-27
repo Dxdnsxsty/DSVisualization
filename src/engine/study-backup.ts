@@ -1,6 +1,6 @@
 import { getAlgorithm } from '../algorithms/registry';
 import { validateLessonProgress } from './learning-progress';
-import { restorePracticeMistakes, serializeMistakes } from './practice-review';
+import { readPracticeMistakes, restorePracticeMistakes, serializeMistakes } from './practice-review';
 import { readStudyData, updateStudyData, type StudyData } from './study-storage';
 
 function lessonRecord(lesson: ReturnType<typeof validateLessonProgress>) {
@@ -14,7 +14,7 @@ export function exportStudyBackup(): string {
     watched: [...new Set(data.watched.filter(getAlgorithm))],
     passed: [...new Set(data.passed.filter(getAlgorithm))],
     lastLesson: lessonRecord(validateLessonProgress(data.lastLesson)),
-    mistakes: serializeMistakes(restorePracticeMistakes(data.mistakes)),
+    mistakes: serializeMistakes(readPracticeMistakes(data.mistakes)),
   } satisfies StudyData, null, 2);
 }
 

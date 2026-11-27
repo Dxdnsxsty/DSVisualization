@@ -1,6 +1,6 @@
 import { useLocale } from './i18n';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { navigate, useRoute } from './engine/router';
+import { navigate, useRoute, type ComparisonReplay } from './engine/router';
 import { usePlayer } from './engine/player';
 import { completedPlayerSlug, saveVisiblePlayerProgress, schedulePlayerAdvance, syncPlayerRoute } from './engine/player-route';
 import { clearScroll } from './engine/scroll';
@@ -41,6 +41,7 @@ export default function App() {
   const switchLanguageLabel = language === 'en' ? '切换到中文' : 'Switch to English';
   const route = useRoute();
   const stageRef = useRef<HTMLDivElement>(null);
+  const comparisonCache = useRef<Partial<Record<'sort' | 'graph', ComparisonReplay>>>({});
   const [tab, setTab] = useState<MobileTab>('stage');
   const [fullscreenError, setFullscreenError] = useState('');
   const slug = route.name === 'algo' ? route.slug : '';
@@ -162,11 +163,10 @@ export default function App() {
           </>
         )}
         {route.name === 'map' && <MapPage />}
-        {route.name === 'compare' && <ComparePage key={JSON.stringify([route.graph, route.comparison])} comparison={route.comparison} graph={route.graph} />}
+        {route.name === 'compare' && <ComparePage key={JSON.stringify([route.graph, route.comparison])}
+          comparison={route.comparison} graph={route.graph} cache={comparisonCache.current} />}
         {route.name === 'lab' && <PracticeLab key={JSON.stringify(route.exercise ?? null)} exercise={route.exercise} />}
       </Suspense>
-
-      <footer className="footer">{t("数据结构可视化 · MIT 开源 · 内容按课程章节组织，欢迎提 PR 补充算法与讲解")}</footer>
     </div>
   );
 }

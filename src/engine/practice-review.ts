@@ -1,6 +1,8 @@
 import { getAlgorithm } from '../algorithms/registry';
 import { customPracticeQuestions, practiceQuestions, type PracticeQuestion } from './practice';
-import { readStudyData, updateStudyData } from './study-storage';
+import { readStudyData, STUDY_KEY } from './study-storage';
+
+const MISTAKE_PREFIX = 'dsv-mistake:';
 
 export interface SavedMistake {
   id: string;
@@ -57,8 +59,27 @@ export function restorePracticeMistakes(raw: unknown): PracticeMistake[] {
   }
 }
 
-export function readPracticeMistakes(): PracticeMistake[] {
-  return restorePracticeMistakes(readStudyData().mistakes);
+export function readPracticeMistakes(base = readStudyData().mistakes): PracticeMistake[] {
+  const mistakes = new Map(restorePracticeMistakes(base).map((record) => [record.id, record]));
+  const changes: { record: unknown; order: number }[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(MISTAKE_PREFIX)) continue;
+      const id = key.slice(MISTAKE_PREFIX.length);
+      const value = localStorage.getItem(key);
+      if (value === 'null') mistakes.delete(id);
+      else if (value) {
+        try {
+          const change = JSON.parse(value);
+          if (change?.id === id) changes.push({ record: change, order: Number(change.recordedAt) || 0 });
+        } catch { /* Ignore a damaged entry. */ }
+      }
+    }
+  } catch { /* Storage may be unavailable. */ }
+  const ordered = changes.sort((a, b) => a.order - b.order).map(({ record }) => record);
+  for (const change of restorePracticeMistakes(ordered)) mistakes.set(change.id, change);
+  return [...mistakes.values()];
 }
 
 export function serializeMistakes(mistakes: PracticeMistake[]): SavedMistake[] {
@@ -67,6 +88,30 @@ export function serializeMistakes(mistakes: PracticeMistake[]): SavedMistake[] {
   }));
 }
 
-export function savePracticeMistakes(mistakes: PracticeMistake[]): boolean {
-  return updateStudyData((data) => ({ ...data, mistakes: serializeMistakes(mistakes) }));
+export function updatePracticeMistake(id: string, mistake: PracticeMistake | null): boolean {
+  try {
+    // Each question has its own key so updates in separate tabs cannot overwrite the list.
+    // A null value suppresses older copies in the study record or an imported backup.
+    const key = MISTAKE_PREFIX + id;
+    let recordedAt = Date.now();
+    try { recordedAt = JSON.parse(localStorage.getItem(key) ?? 'null')?.recordedAt ?? recordedAt; }
+    catch { /* Replace a damaged entry. */ }
+    const value = mistake ? { ...serializeMistakes([mistake])[0], recordedAt } : null;
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch { return false; }
+}
+
+export function subscribePracticeMistakes(listener: () => void): () => void {
+  const onStorage = ({ key, oldValue, newValue }: StorageEvent) => {
+    if (key === null || key?.startsWith(MISTAKE_PREFIX) || key === 'dsv-practice-mistakes') listener();
+    else if (key === STUDY_KEY) {
+      const mistakeData = (value: string | null) => {
+        try { return JSON.stringify(JSON.parse(value ?? 'null')?.mistakes); } catch { return undefined; }
+      };
+      if (mistakeData(oldValue) !== mistakeData(newValue)) listener();
+    }
+  };
+  window.addEventListener('storage', onStorage);
+  return () => window.removeEventListener('storage', onStorage);
 }

@@ -23,9 +23,12 @@ test('演示和练习分别记录，JSON 备份可合并并继续上次演示', 
     version: 1, watched: ['recursion/factorial'], passed: ['stack/seq-stack'],
     lastLesson: { slug: 'recursion/factorial', input: [8] }, mistakes: [{ slug: 'stack/seq-stack', choice: '0' }],
   });
-  await page.evaluate(() => localStorage.setItem('dsv-study', JSON.stringify({
-    version: 1, watched: [], passed: ['tree/inorder'], lastLesson: null, mistakes: [],
-  })));
+  await page.evaluate(() => {
+    for (const key of Object.keys(localStorage)) if (key.startsWith('dsv-mistake:')) localStorage.removeItem(key);
+    localStorage.setItem('dsv-study', JSON.stringify({
+      version: 1, watched: [], passed: ['tree/inorder'], lastLesson: null, mistakes: [],
+    }));
+  });
   await page.reload();
 
   const input = page.getByLabel('学习记录文件');
@@ -39,20 +42,28 @@ test('演示和练习分别记录，JSON 备份可合并并继续上次演示', 
   if (await nav.isVisible()) await nav.click();
   await expect(page.locator('.catalog-foot')).toContainText('已看完演示 1 / 53 · 练习通过 2 / 53');
   await page.goto('/#/lab');
-  await expect(page.getByRole('button', { name: '只练错题（1）' })).toBeVisible();
+  await page.getByRole('button', { name: '只练错题（1）' }).click();
+  await page.locator('.lab-options').getByRole('button', { name: '999', exact: true }).click();
+  await expect(page.getByRole('button', { name: '只练错题（0）' })).toBeVisible();
+  await page.goto('/#/map');
+  await input.setInputFiles({ name: file.suggestedFilename(), mimeType: 'application/json', buffer: backup });
+  await expect(page.getByRole('status')).toContainText('学习记录已合并');
+  await page.goto('/#/lab');
+  await expect(page.getByRole('button', { name: '只练错题（0）' })).toBeVisible();
 });
 
 test('改过题干的旧本地错题仍可复习', async ({ page }) => {
   await page.goto('/#/lab');
   await page.locator('.lab-options').getByRole('button', { name: '0', exact: true }).click();
   await page.evaluate(() => {
-    const data = JSON.parse(localStorage.getItem('dsv-study')!);
-    const [record] = data.mistakes;
+    const key = Object.keys(localStorage).find((item) => item.startsWith('dsv-mistake:'))!;
+    const record = JSON.parse(localStorage.getItem(key)!);
     const [, ...parts] = JSON.parse(record.id);
     localStorage.setItem('dsv-practice-mistakes', JSON.stringify([{
       ...record, id: JSON.stringify([...parts, '旧题干已经被修改', '999']),
     }]));
     localStorage.removeItem('dsv-study');
+    localStorage.removeItem(key);
   });
   await page.reload();
   await page.getByRole('button', { name: '只练错题（1）' }).click();

@@ -1,8 +1,9 @@
 import { useTranslate } from '../i18n';
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { algorithms, getAlgorithm } from '../algorithms/registry';
 import { Stage } from '../components/Stage';
 import { CustomGraphDialog } from '../components/StructureDialogs';
+import { ShareLink } from '../components/ShareReplay';
 import type { AlgorithmMeta, TraceStep } from '../engine/types';
 import { algorithmReplayPath, comparisonReplayPath, navigate, type ComparisonReplay } from '../engine/router';
 import { DEFAULT_INPUT, parseInputText, validateInput } from '../engine/input';
@@ -13,6 +14,8 @@ const SORTS = algorithms.filter((a) => a.category === 'ch10');
 const BFS = getAlgorithm('graph/bfs')!;
 const DFS = getAlgorithm('graph/dfs')!;
 const DEFAULT_GRAPH = parseCustomGraph('A B C D E', 'A', 'A B\nA C\nB D\nC E', false);
+type ComparisonMode = 'sort' | 'graph';
+type OnSnapshot = (replay: ComparisonReplay) => void;
 
 function comparisonError(input: number[], pair: AlgorithmMeta[]): string | null {
   for (const algo of pair) {
@@ -51,18 +54,20 @@ function Pane({ algo, trace, step, onLearn, onSeek }: {
   );
 }
 
-function Comparison({ left, right, input, initialSteps }: {
-  left: AlgorithmMeta; right: AlgorithmMeta; input: number[]; initialSteps?: [number, number];
+function Comparison({ left, right, input, initialSteps, onSnapshot }: {
+  left: AlgorithmMeta; right: AlgorithmMeta; input: number[]; initialSteps?: [number, number]; onSnapshot: OnSnapshot;
 }) {
   const t = useTranslate();
   const traces = useMemo(() => [left.generate([...input]), right.generate([...input])] as const, [left, right, input]);
   const [state, dispatch] = useReducer(comparisonReducer, [traces[0].length, traces[1].length] as [number, number],
     (lengths) => createComparisonPlayback(lengths, initialSteps));
   const finished = comparisonFinished(state);
+  const replay = useMemo(() => ({ left: left.slug, right: right.slug, input, steps: state.steps }),
+    [left.slug, right.slug, input, state.steps]);
+  useLayoutEffect(() => { onSnapshot(replay); }, [onSnapshot, replay]);
   const learn = (side: 0 | 1) => {
-    const comparison = { left: left.slug, right: right.slug, input, steps: state.steps };
-    window.history.replaceState(window.history.state, '', '#/' + comparisonReplayPath(comparison));
-    navigate(algorithmReplayPath(side === 0 ? left.slug : right.slug, { input, step: state.steps[side] }, comparison));
+    window.history.replaceState(window.history.state, '', '#/' + comparisonReplayPath(replay));
+    navigate(algorithmReplayPath(side === 0 ? left.slug : right.slug, { input, step: state.steps[side] }, replay));
   };
 
   useEffect(() => {
@@ -82,6 +87,7 @@ function Comparison({ left, right, input, initialSteps }: {
       </select></label>
       <span className="muted" role="status">{t(state.playing ? '播放中' : finished ? '两侧均已结束' : '已暂停')}</span>
     </section>
+    <ShareLink comparison getReplay={() => ({ path: comparisonReplayPath(replay) })} />
     <p className="muted">{t("每次两侧各推进一个演示步骤，先结束的一侧停在终态。拖动任一侧进度会暂停播放；同步步数不代表实际运行速度。")}</p>
     <div className="compare-grid">
       <Pane algo={left} trace={traces[0]} step={state.steps[0]} onLearn={() => learn(0)} onSeek={(step) => dispatch({ type: 'seek', side: 0, step })} />
@@ -90,7 +96,7 @@ function Comparison({ left, right, input, initialSteps }: {
   </>;
 }
 
-function SortComparison({ comparison }: { comparison?: ComparisonReplay }) {
+function SortComparison({ comparison, onSnapshot }: { comparison?: ComparisonReplay; onSnapshot: OnSnapshot }) {
   const t = useTranslate();
   const savedLeft = SORTS.find((algo) => algo.slug === comparison?.left);
   const savedRight = SORTS.find((algo) => algo.slug === comparison?.right);
@@ -135,12 +141,12 @@ function SortComparison({ comparison }: { comparison?: ComparisonReplay }) {
       </p>
       <p className="muted">{t("计数规则：只统计关键字比较和数据元素写入；累计写入包含原数组及辅助数组/桶，一次交换计 2 次写入，相同值写回也计数。临时变量、边界判断、数组初始化、清空和演示快照不计。基数排序按位分桶，不比较关键字大小，因此比较次数为 0；移位与填坑不计交换。操作次数和演示步骤数均不代表运行耗时。")}</p>
       {/* 成功应用数据或切换算法时，卸载旧播放器以取消计时并重置两侧。 */}
-      <Comparison key={revision} left={a} right={b} input={input} initialSteps={revision === 0 ? saved?.steps : undefined} />
+      <Comparison key={revision} left={a} right={b} input={input} initialSteps={revision === 0 ? saved?.steps : undefined} onSnapshot={onSnapshot} />
     </>
   );
 }
 
-function GraphComparison({ comparison }: { comparison?: ComparisonReplay }) {
+function GraphComparison({ comparison, onSnapshot }: { comparison?: ComparisonReplay; onSnapshot: OnSnapshot }) {
   const t = useTranslate();
   const saved = comparison?.left === BFS.slug && comparison.right === DFS.slug &&
     comparison.input[0] === -1 && !comparisonError(comparison.input, [BFS, DFS]) ? comparison : undefined;
@@ -158,12 +164,17 @@ function GraphComparison({ comparison }: { comparison?: ComparisonReplay }) {
     {editing && <CustomGraphDialog algo={BFS} input={input}
       regenerate={(next) => { setInput(next); setRevision((value) => value + 1); }}
       onClose={() => { setEditing(false); trigger.current?.focus(); }} />}
-    <Comparison key={revision} left={BFS} right={DFS} input={input} initialSteps={revision === 0 ? saved?.steps : undefined} />
+    <Comparison key={revision} left={BFS} right={DFS} input={input} initialSteps={revision === 0 ? saved?.steps : undefined} onSnapshot={onSnapshot} />
   </>;
 }
 
-export function ComparePage({ comparison, graph }: { comparison?: ComparisonReplay; graph?: true }) {
+export function ComparePage({ comparison, graph, cache }: {
+  comparison?: ComparisonReplay; graph?: true; cache: Partial<Record<ComparisonMode, ComparisonReplay>>;
+}) {
   const t = useTranslate();
+  const mode = graph ? 'graph' : 'sort';
+  const saved = comparison ?? cache[mode];
+  const remember: OnSnapshot = (replay) => { cache[mode] = replay; };
   return (
     <main className="page compare-page">
       <div className="page-intro"><h1>{t("算法对比实验室")}</h1><p>{t("同一组输入，并排观察不同算法的步骤数量、状态变化与最终结果。")}</p></div>
@@ -171,7 +182,7 @@ export function ComparePage({ comparison, graph }: { comparison?: ComparisonRepl
         <button type="button" aria-pressed={!graph} onClick={() => { if (graph) navigate('compare'); }}>{t('排序对比')}</button>
         <button type="button" aria-pressed={!!graph} onClick={() => { if (!graph) navigate('compare/graph'); }}>BFS / DFS</button>
       </div>
-      {graph ? <GraphComparison comparison={comparison} /> : <SortComparison comparison={comparison} />}
+      {graph ? <GraphComparison comparison={saved} onSnapshot={remember} /> : <SortComparison comparison={saved} onSnapshot={remember} />}
     </main>
   );
 }

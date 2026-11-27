@@ -1,10 +1,10 @@
 import { useTranslate } from '../i18n';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { algorithms, getAlgorithm } from '../algorithms/registry';
 import { Stage } from '../components/Stage';
 import { decodeMatchInput } from '../engine/input';
 import { customPracticeQuestions, practiceQuestions, supportsCustomPractice } from '../engine/practice';
-import { practiceQuestionId, readPracticeMistakes, savePracticeMistakes, type PracticeMistake } from '../engine/practice-review';
+import { practiceQuestionId, readPracticeMistakes, subscribePracticeMistakes, updatePracticeMistake, type PracticeMistake } from '../engine/practice-review';
 import { algorithmReplayPath, navigate, type ExerciseReplay } from '../engine/router';
 import { decodeCustomGraph, formatTreeInput } from '../engine/structure-input';
 import { markStudyMilestone } from '../engine/study-storage';
@@ -49,6 +49,16 @@ export function PracticeLab({ exercise }: { exercise?: ExerciseReplay }) {
   const inputLabel = task && describeInput(taskAlgo, task.input);
   const mastered = reviewing && !!task && answer === task.answer;
 
+  useEffect(() => subscribePracticeMistakes(() => {
+    if (storageFailed) return;
+    const next = readPracticeMistakes();
+    setMistakes(next);
+    if (reviewing && !mastered && !next.some(({ id }) => id === review?.id)) {
+      setReview(next[0]);
+      setAnswer(null);
+    }
+  }), [reviewing, mastered, review, storageFailed]);
+
   const chooseAlgorithm = (value: string) => {
     setSlug(value);
     setRound(0);
@@ -72,9 +82,16 @@ export function PracticeLab({ exercise }: { exercise?: ExerciseReplay }) {
     setAnswer(null);
   };
 
-  const updateMistakes = (nextMistakes: PracticeMistake[]) => {
-    setMistakes(nextMistakes);
-    setStorageFailed(!savePracticeMistakes(nextMistakes));
+  const updateMistakes = (id: string, mistake: PracticeMistake | null) => {
+    const saved = updatePracticeMistake(id, mistake);
+    if (saved) setMistakes(readPracticeMistakes());
+    else setMistakes((current) => {
+      const next = new Map(current.map((item) => [item.id, item]));
+      if (mistake) next.set(id, mistake);
+      else next.delete(id);
+      return [...next.values()];
+    });
+    setStorageFailed(!saved);
   };
 
   const submit = (value: string) => {
@@ -83,11 +100,10 @@ export function PracticeLab({ exercise }: { exercise?: ExerciseReplay }) {
     const id = practiceQuestionId(taskAlgo.slug, task);
     if (value === task.answer) {
       markStudyMilestone(taskAlgo.slug, 'passed');
-      if (reviewing) updateMistakes(mistakes.filter((item) => item.id !== id));
+      if (reviewing) updateMistakes(id, null);
     } else {
       const mistake = { id, slug: taskAlgo.slug, choice: value, question: task };
-      updateMistakes(mistakes.some((item) => item.id === id)
-        ? mistakes.map((item) => item.id === id ? mistake : item) : [...mistakes, mistake]);
+      updateMistakes(id, mistake);
     }
   };
 

@@ -62,3 +62,23 @@ test('断网单文件版也能记录和复习错题', async ({ page, context }) 
   await choices.getByRole('button', { name: '999', exact: true }).click();
   await expect(review).toHaveText('只练错题（0）');
 });
+
+test('多个标签页分别答错、答对复习题时同步增删且互不覆盖', async ({ page, context }) => {
+  const second = await context.newPage();
+  await Promise.all([page.goto('/#/lab'), second.goto('/#/lab')]);
+  await second.getByLabel('选择算法').selectOption('queue/circular-queue');
+  await Promise.all([
+    page.locator('.lab-options').getByRole('button', { name: '0', exact: true }).click(),
+    second.locator('.lab-options').getByRole('button', { name: '5', exact: true }).click(),
+  ]);
+  await expect(page.getByRole('button', { name: '只练错题（2）' })).toBeVisible();
+  await expect(second.getByRole('button', { name: '只练错题（2）' })).toBeVisible();
+
+  await page.reload();
+  await page.getByRole('button', { name: '只练错题（2）' }).click();
+  if (await page.getByText(/rear 会指向哪个下标/).isVisible()) await page.getByRole('button', { name: '换一题', exact: true }).click();
+  await page.locator('.lab-options').getByRole('button', { name: '999', exact: true }).click();
+  await expect(second.getByRole('button', { name: '只练错题（1）' })).toBeVisible();
+  await second.getByRole('button', { name: '只练错题（1）' }).click();
+  await expect(second.getByText(/rear 会指向哪个下标/)).toBeVisible();
+});
