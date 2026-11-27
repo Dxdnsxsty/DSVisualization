@@ -14,7 +14,13 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
   const p = usePlayer(useShallow(({ lang, input, setLang, jumpToAnchor }) => ({ lang, input, setLang, jumpToAnchor })));
   const lines = algo.code[p.lang] ?? algo.code.cpp;
   const activeAnchor = usePlayer((state) => state.trace[state.step]?.anchor);
-  const tokenLines = useMemo(() => lines.map((line) => tokenize(line.text, p.lang)), [lines, p.lang]);
+  const tokenLines = useMemo(() => lines.map((line) => tokenize(
+    line.text.replace(/"((?:\\.|[^"\\])*)"/g, (literal, message: string) => {
+      const translated = t(message);
+      return translated === message ? literal : JSON.stringify(translated);
+    }),
+    p.lang,
+  )), [lines, p.lang, t]);
   const displayToken = (token: ReturnType<typeof tokenize>[number]) =>
     token.kind === 'comment'
       ? token.text.replace(/^(\/\/|#)(\s*)(.*)$/, (_, marker, gap, comment) => marker + gap + t(comment))

@@ -12,6 +12,11 @@ export default defineConfig({
   projects: [
     { name: 'desktop', use: { browserName: 'chromium', viewport: { width: 1440, height: 1000 } } },
     { name: 'narrow', use: { browserName: 'chromium', viewport: { width: 390, height: 844 } } },
+    {
+      name: 'webkit',
+      testMatch: ['**/language.spec.ts', '**/custom-dialog-smoke.spec.ts'],
+      use: { browserName: 'webkit', viewport: { width: 390, height: 844 } },
+    },
   ],
   webServer: {
     command: `"${process.execPath}" node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 41080 --strictPort`,

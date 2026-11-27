@@ -79,6 +79,47 @@ test('用自定义树出中序遍历题，并保留层序空位', async ({ page 
   await expect(page.locator('.lab-result')).toContainText('回答正确。');
 });
 
+test('BFS 按自定义队列出题，答错后能回放同一组输入', async ({ page }) => {
+  const input = parseCustomGraph('A, B, C', 'C', 'C B', false);
+  await page.goto('/#/' + algorithmReplayPath('graph/bfs', { input, step: 0 }));
+  await page.getByRole('button', { name: '用这组数据练习', exact: true }).click();
+  await expect(page.locator('.lab-question')).toHaveText('BFS 接下来会从队头取出哪个顶点？');
+  await expect(page.locator('.lab-card')).toContainText('起点 C');
+  await page.locator('.lab-options').getByRole('button', { name: 'A', exact: true }).click();
+  await expect(page.locator('.lab-result')).toContainText('正确答案是「C」');
+  await page.getByRole('button', { name: '从第 1 步打开动画' }).click();
+  await expect(page.locator('.col-center .caption-text').first()).toContainText('起点 C 入队');
+});
+
+test('DFS 在自定义图上能练习递归深入和跳过已访问结点', async ({ page }) => {
+  const input = parseCustomGraph('A, B, C', 'B', 'B C', false);
+  await page.goto('/#/' + algorithmReplayPath('graph/dfs', { input, step: 0 }));
+  await page.getByRole('button', { name: '用这组数据练习', exact: true }).click();
+  await expect(page.locator('.lab-question')).toHaveText('DFS 刚检查了一个邻接点，下一步会怎么处理它？');
+  const options = page.locator('.lab-options');
+  await options.getByRole('button', { name: '递归进入该邻接点' }).click();
+  await expect(page.locator('.lab-result')).toContainText('回答正确。');
+  await page.getByRole('button', { name: '换一题', exact: true }).click();
+  await options.getByRole('button', { name: '跳过已访问的邻接点' }).click();
+  await expect(page.locator('.lab-result')).toContainText('回答正确。');
+});
+
+test('拓扑练习能预测出栈，也能识别自定义有向环', async ({ page }) => {
+  const open = async (edges: string) => {
+    const input = parseCustomGraph('A, B, C', null, edges, false);
+    await page.goto('/#/' + algorithmReplayPath('graph/topo-sort', { input, step: 0 }));
+    await page.getByRole('button', { name: '用这组数据练习', exact: true }).click();
+  };
+  await open('A B\nB C');
+  await expect(page.locator('.lab-question')).toContainText('下一个出栈并输出的是谁？');
+  await page.locator('.lab-options').getByRole('button', { name: 'A', exact: true }).click();
+  await expect(page.locator('.lab-result')).toContainText('回答正确。');
+  await open('A B\nB C\nC A');
+  await expect(page.locator('.lab-question')).toContainText('待输出栈已空');
+  await page.locator('.lab-options').getByRole('button', { name: '存在环，拓扑排序无法完成' }).click();
+  await expect(page.locator('.lab-result')).toContainText('回答正确。');
+});
+
 test('无法出题时在演示页提示，生成可用输入后恢复练习入口', async ({ page }) => {
   const input = parseTreeInput('A, null, A');
   await page.goto('/#/' + algorithmReplayPath('tree/inorder', { input, step: 0 }));

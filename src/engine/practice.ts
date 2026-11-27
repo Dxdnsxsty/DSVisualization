@@ -12,11 +12,45 @@ export interface PracticeQuestion {
   custom?: true;
 }
 
+const customPracticeSlugs = new Set(['graph/dijkstra', 'tree/inorder', 'graph/bfs', 'graph/dfs', 'graph/topo-sort']);
+
 export function supportsCustomPractice(slug: string): boolean {
-  return slug === 'graph/dijkstra' || slug === 'tree/inorder';
+  return customPracticeSlugs.has(slug);
 }
 
 function customPrompt(slug: string, before: TraceStep, after: TraceStep) {
+  if (slug === 'graph/bfs' && after.anchor === 'dequeue') {
+    return {
+      prompt: 'BFS 接下来会从队头取出哪个顶点？',
+      answer: String(after.vars.当前顶点),
+      alternatives: before.scene.nodes.map((node) => node.value),
+    };
+  }
+  if (slug === 'graph/dfs' && before.anchor === 'loop' && (after.anchor === 'recurse' || after.anchor === 'check')) {
+    const visit = '递归进入该邻接点';
+    const skip = '跳过已访问的邻接点';
+    return {
+      prompt: 'DFS 刚检查了一个邻接点，下一步会怎么处理它？',
+      answer: after.anchor === 'recurse' ? visit : skip,
+      alternatives: [visit, skip],
+    };
+  }
+  if (slug === 'graph/topo-sort') {
+    if (after.anchor === 'pop') return {
+      prompt: '拓扑排序使用栈保存待输出顶点。下一个出栈并输出的是谁？',
+      answer: String(after.vars.当前顶点),
+      alternatives: before.scene.nodes.map((node) => node.value),
+    };
+    if (after.anchor === 'cycle' || after.anchor === 'done') {
+      const cycle = '存在环，拓扑排序无法完成';
+      const done = '所有顶点已输出，拓扑排序完成';
+      return {
+        prompt: '待输出栈已空。根据当前输出序列，能得出什么结论？',
+        answer: after.anchor === 'cycle' ? cycle : done,
+        alternatives: [cycle, done],
+      };
+    }
+  }
   if (slug === 'tree/inorder' && after.anchor === 'visit') {
     const value = after.scene.output?.values.at(-1);
     if (value !== undefined) return {

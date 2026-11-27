@@ -14,10 +14,16 @@ function describeInput(algo: NonNullable<ReturnType<typeof getAlgorithm>>, input
     return `主串 ${main}，模式串 ${pattern}`;
   }
   if (algo.input?.format === 'tree-level') return formatTreeInput(input);
-  if (algo.slug === 'graph/dijkstra') {
+  if (algo.customGraph) {
     const graph = decodeCustomGraph(input);
-    if (graph) return `顶点 ${graph.labels.join('、')}，起点 ${graph.labels[graph.source]}，边 ${graph.edges.map(([from, to, weight]) =>
-      `${graph.labels[from]}→${graph.labels[to]} (${weight})`).join('、') || '无'}`;
+    if (graph) {
+      const undirected = algo.customGraph === 'undirected';
+      const weighted = algo.customGraph === 'weighted' || algo.customGraph === 'weighted-signed';
+      const edges = graph.edges.map(([from, to, weight]) =>
+        `${graph.labels[from]}${undirected ? '–' : '→'}${graph.labels[to]}${weighted ? ` (${weight})` : ''}`);
+      const source = algo.customGraph === 'directed' ? '' : `，起点 ${graph.labels[graph.source]}`;
+      return `顶点 ${graph.labels.join('、')}${source}，边 ${edges.join('、') || '无'}`;
+    }
   }
   return input.join(', ');
 }

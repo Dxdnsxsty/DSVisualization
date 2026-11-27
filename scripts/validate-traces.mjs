@@ -21,6 +21,7 @@ import { checkTopoStack } from './topo-stack.mjs';
 import { checkGraphCases } from './graph-cases.mjs';
 import { checkTeachingDetails } from './teaching-details.mjs';
 import { checkBellmanFordExit } from './bellman-ford.mjs';
+import { checkEnglishLocale } from './locale-coverage.mjs';
 
 const result = await build({
   entryPoints: ['src/algorithms/registry.ts'],
@@ -65,6 +66,7 @@ try {
   errors.push(...checkGraphCases(mod.algorithms));
   errors.push(...checkTeachingDetails(mod.algorithms));
   errors.push(...checkBellmanFordExit(mod.algorithms));
+  errors.push(...await checkEnglishLocale(mod.algorithms));
 
   if (errors.length > 0) {
     console.error('\n校验未通过：');

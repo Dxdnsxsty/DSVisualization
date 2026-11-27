@@ -73,8 +73,20 @@ test('English Floyd steps retain the numeric comparison and matrix indices', asy
   await expect(caption).toHaveText('D[D][A] + D[A][B] = 7 + 3 = 10 < ∞. The path through A is shorter, so update the distance.');
 });
 
+test('topological sorting uses English in code messages and input-based practice', async ({ page }) => {
+  await page.goto('/#/algo/graph/topo-sort');
+  await page.getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  const mobileTabs = page.locator('.mobile-tabs');
+  if (await mobileTabs.isVisible()) await mobileTabs.getByRole('button', { name: 'Code', exact: true }).click();
+  await expect(page.locator('.code-lines')).toContainText('Cannot complete topological sort: the graph contains a cycle.');
+  if (await mobileTabs.isVisible()) await mobileTabs.getByRole('button', { name: 'Animation', exact: true }).click();
+  await page.getByRole('button', { name: 'Practice with This Input' }).click();
+  await expect(page.locator('.lab-question')).toContainText('Which vertex will topological sort pop next?');
+});
+
 test('English works in the offline build and fits a 320px viewport', async ({ page, context }, testInfo) => {
-  test.skip(testInfo.project.name !== 'narrow', 'Run at the smallest supported viewport');
+  test.skip(testInfo.project.name === 'desktop', 'Run at the smallest supported viewport');
   await page.setViewportSize({ width: 320, height: 750 });
   await context.setOffline(true);
   await page.goto(pathToFileURL(resolve('dist/standalone.html')).href + '#/algo/array/sparse-triple');

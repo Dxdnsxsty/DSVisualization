@@ -77,7 +77,8 @@ export function Controls({ fullscreen = false }: { fullscreen?: boolean }) {
         }}>{t("用这组数据练习")}</button>
         {!canPractice && <span className="muted">{t(slug === 'tree/inorder'
           ? '至少需要两个不同的结点值，才能生成选择题。'
-          : '这张图没有可出题的选点或松弛步骤。')}</span>}
+          : slug === 'graph/dijkstra' ? '这张图没有可出题的选点或松弛步骤。'
+          : '这张图没有可出题的遍历步骤，请多添加几个顶点或边。')}</span>}
       </div>}
     </div>
   );
