@@ -1,13 +1,18 @@
 import { useTranslate } from '../i18n';
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { algorithms, getAlgorithm } from '../algorithms/registry';
 import { Stage } from '../components/Stage';
+import { CustomGraphDialog } from '../components/StructureDialogs';
 import type { AlgorithmMeta, TraceStep } from '../engine/types';
 import { algorithmReplayPath, comparisonReplayPath, navigate, type ComparisonReplay } from '../engine/router';
 import { DEFAULT_INPUT, parseInputText, validateInput } from '../engine/input';
 import { comparisonFinished, comparisonReducer, createComparisonPlayback } from '../engine/compare-player';
+import { decodeCustomGraph, parseCustomGraph } from '../engine/structure-input';
 
 const SORTS = algorithms.filter((a) => a.category === 'ch10');
+const BFS = getAlgorithm('graph/bfs')!;
+const DFS = getAlgorithm('graph/dfs')!;
+const DEFAULT_GRAPH = parseCustomGraph('A B C D E', 'A', 'A B\nA C\nB D\nC E', false);
 
 function comparisonError(input: number[], pair: AlgorithmMeta[]): string | null {
   for (const algo of pair) {
@@ -23,8 +28,9 @@ function Pane({ algo, trace, step, onLearn, onSeek }: {
   const t = useTranslate();
   const cur = trace[step];
   const final = trace[trace.length - 1];
+  const traversal = cur.vars.遍历序列;
   return (
-    <section className="panel compare-pane">
+    <section className={algo.customGraph ? 'panel compare-pane compare-graph-pane' : 'panel compare-pane'}>
       <div className="panel-head"><span>{t(algo.title)}</span><button className="mini" onClick={onLearn}>{t("单独学习")}</button></div>
       <Stage scene={cur.scene} />
       <div className="compare-caption">{t("步骤 ")}{step + 1} / {trace.length} · {t(cur.caption)}</div>
@@ -35,9 +41,11 @@ function Pane({ algo, trace, step, onLearn, onSeek }: {
           <span>{t("累计交换 ")}<b>{cur.metrics.swaps}</b></span>
           <span>{t("累计写入 ")}<b>{cur.metrics.writes}</b></span>
           <span>{t("其中原数组 ")}<b>{cur.metrics.writes - (cur.metrics.auxiliaryWrites ?? 0)}</b>{t(" · 辅助数组/桶 ")}<b>{cur.metrics.auxiliaryWrites ?? 0}</b></span>
-        </> : <span>{t("此算法尚未接入操作统计")}</span>}
+        </> : null}
         <span>{t("步骤数 ")}<b>{trace.length}</b></span>
-        <span>{t("终态 ")}<code>{t(final.scene.nodes.map((n) => n.value).filter(Boolean).join(', '))}</code></span>
+        {algo.customGraph
+          ? <span>{t("当前访问顺序 ")}<code>{traversal && traversal !== '空' ? [...String(traversal)].join(' → ') : t('空')}</code></span>
+          : <span>{t("终态 ")}<code>{t(final.scene.nodes.map((n) => n.value).filter(Boolean).join(', '))}</code></span>}
       </div>
     </section>
   );
@@ -82,7 +90,7 @@ function Comparison({ left, right, input, initialSteps }: {
   </>;
 }
 
-export function ComparePage({ comparison }: { comparison?: ComparisonReplay }) {
+function SortComparison({ comparison }: { comparison?: ComparisonReplay }) {
   const t = useTranslate();
   const savedLeft = SORTS.find((algo) => algo.slug === comparison?.left);
   const savedRight = SORTS.find((algo) => algo.slug === comparison?.right);
@@ -115,8 +123,7 @@ export function ComparePage({ comparison }: { comparison?: ComparisonReplay }) {
     setRevision((value) => value + 1);
   };
   return (
-    <main className="page compare-page">
-      <div className="page-intro"><h1>{t("算法对比实验室")}</h1><p>{t("同一组输入，并排观察不同算法的步骤数量、状态变化与最终结果。")}</p></div>
+    <>
       <form className="panel compare-controls" onSubmit={(e) => { e.preventDefault(); parse(); }}>
         <label>{t("共同输入 ")}<input value={raw} onChange={(e) => setRaw(e.target.value)} aria-describedby="compare-input-status" /></label>
         <button className="primary" type="submit">{t("应用输入")}</button>
@@ -129,6 +136,42 @@ export function ComparePage({ comparison }: { comparison?: ComparisonReplay }) {
       <p className="muted">{t("计数规则：只统计关键字比较和数据元素写入；累计写入包含原数组及辅助数组/桶，一次交换计 2 次写入，相同值写回也计数。临时变量、边界判断、数组初始化、清空和演示快照不计。基数排序按位分桶，不比较关键字大小，因此比较次数为 0；移位与填坑不计交换。操作次数和演示步骤数均不代表运行耗时。")}</p>
       {/* 成功应用数据或切换算法时，卸载旧播放器以取消计时并重置两侧。 */}
       <Comparison key={revision} left={a} right={b} input={input} initialSteps={revision === 0 ? saved?.steps : undefined} />
+    </>
+  );
+}
+
+function GraphComparison({ comparison }: { comparison?: ComparisonReplay }) {
+  const t = useTranslate();
+  const saved = comparison?.left === BFS.slug && comparison.right === DFS.slug &&
+    comparison.input[0] === -1 && !comparisonError(comparison.input, [BFS, DFS]) ? comparison : undefined;
+  const [input, setInput] = useState(saved?.input ?? DEFAULT_GRAPH);
+  const [revision, setRevision] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const graph = decodeCustomGraph(input)!;
+  const edges = graph.edges.map(([from, to]) => `${graph.labels[from]}–${graph.labels[to]}`).join(', ');
+  return <>
+    <div className="panel compare-controls">
+      <span>{t(`顶点 ${graph.labels.join(', ')}，起点 ${graph.labels[graph.source]}，边 ${edges || '无'}`)}</span>
+      <button ref={trigger} type="button" aria-haspopup="dialog" onClick={() => setEditing(true)}>{t('自定义图')}</button>
+    </div>
+    {editing && <CustomGraphDialog algo={BFS} input={input}
+      regenerate={(next) => { setInput(next); setRevision((value) => value + 1); }}
+      onClose={() => { setEditing(false); trigger.current?.focus(); }} />}
+    <Comparison key={revision} left={BFS} right={DFS} input={input} initialSteps={revision === 0 ? saved?.steps : undefined} />
+  </>;
+}
+
+export function ComparePage({ comparison, graph }: { comparison?: ComparisonReplay; graph?: true }) {
+  const t = useTranslate();
+  return (
+    <main className="page compare-page">
+      <div className="page-intro"><h1>{t("算法对比实验室")}</h1><p>{t("同一组输入，并排观察不同算法的步骤数量、状态变化与最终结果。")}</p></div>
+      <div className="compare-modes" role="group" aria-label={t('对比类型')}>
+        <button type="button" aria-pressed={!graph} onClick={() => { if (graph) navigate('compare'); }}>{t('排序对比')}</button>
+        <button type="button" aria-pressed={!!graph} onClick={() => { if (!graph) navigate('compare/graph'); }}>BFS / DFS</button>
+      </div>
+      {graph ? <GraphComparison comparison={comparison} /> : <SortComparison comparison={comparison} />}
     </main>
   );
 }

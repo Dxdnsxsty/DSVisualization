@@ -4,8 +4,8 @@ import { navigate, useRoute } from './engine/router';
 import { usePlayer } from './engine/player';
 import { completedPlayerSlug, saveVisiblePlayerProgress, schedulePlayerAdvance, syncPlayerRoute } from './engine/player-route';
 import { clearScroll } from './engine/scroll';
-import { MapPage } from './components/Placeholder';
-import { markLearned } from './components/Catalog';
+import { MapPage } from './pages/MapPage';
+import { markStudyMilestone } from './engine/study-storage';
 
 const AlgorithmPage = lazy(() => import('./pages/AlgorithmPage').then((module) => ({ default: module.AlgorithmPage })));
 const ComparePage = lazy(() => import('./pages/ComparePage').then((module) => ({ default: module.ComparePage })));
@@ -22,7 +22,7 @@ function PlayerEffects({ slug }: { slug: string }) {
   useEffect(() => schedulePlayerAdvance(slug), [slug, loadedSlug, playing, step, speed, trace]);
   useEffect(() => {
     const completed = completedPlayerSlug(slug);
-    if (completed) markLearned(completed);
+    if (completed) markStudyMilestone(completed, 'watched');
   }, [slug, loadedSlug, step, trace]);
   return null;
 }
@@ -116,7 +116,6 @@ export default function App() {
           <button className={route.name === 'lab' ? 'active' : ''} onClick={() => navigate('lab')}>{t("练习中心")}</button>
         </nav>
         <div className="topright">
-          <span className="top-hint">{t("开源 · 无登录 · 无后端")}</span>
           <button
             type="button"
             className="language-switch"
@@ -163,7 +162,7 @@ export default function App() {
           </>
         )}
         {route.name === 'map' && <MapPage />}
-        {route.name === 'compare' && <ComparePage key={JSON.stringify(route.comparison ?? null)} comparison={route.comparison} />}
+        {route.name === 'compare' && <ComparePage key={JSON.stringify([route.graph, route.comparison])} comparison={route.comparison} graph={route.graph} />}
         {route.name === 'lab' && <PracticeLab key={JSON.stringify(route.exercise ?? null)} exercise={route.exercise} />}
       </Suspense>
 

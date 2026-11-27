@@ -1,25 +1,21 @@
 import { getAlgorithm } from '../algorithms/registry';
 import { DEFAULT_INPUT, validateInput } from './input';
 import type { AlgorithmReplay } from './router';
+import { readStudyData, updateStudyData } from './study-storage';
 
-const KEY = 'dsv-last-lesson';
-
-interface LessonProgress extends AlgorithmReplay {
+export interface LessonProgress extends AlgorithmReplay {
   slug: string;
 }
 
 export function saveLessonProgress(progress: LessonProgress): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(progress));
-  } catch { /* 浏览器禁用存储时，演示仍可正常播放。 */ }
+  updateStudyData((data) => ({ ...data, lastLesson: progress }));
 }
 
-export function readLessonProgress() {
+export function validateLessonProgress(value: unknown) {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    const saved: Partial<LessonProgress> | null = JSON.parse(raw);
+    const saved = value as Partial<LessonProgress> | null;
     if (!saved || typeof saved.slug !== 'string' || !Array.isArray(saved.input) ||
+      saved.input.length > 99 || !saved.input.every(Number.isSafeInteger) ||
       typeof saved.step !== 'number' || !Number.isSafeInteger(saved.step) || saved.step < 0) return null;
 
     const algo = getAlgorithm(saved.slug);
@@ -31,4 +27,8 @@ export function readLessonProgress() {
   } catch {
     return null;
   }
+}
+
+export function readLessonProgress() {
+  return validateLessonProgress(readStudyData().lastLesson);
 }

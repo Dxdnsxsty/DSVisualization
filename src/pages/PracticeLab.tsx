@@ -7,6 +7,7 @@ import { customPracticeQuestions, practiceQuestions, supportsCustomPractice } fr
 import { practiceQuestionId, readPracticeMistakes, savePracticeMistakes, type PracticeMistake } from '../engine/practice-review';
 import { algorithmReplayPath, navigate, type ExerciseReplay } from '../engine/router';
 import { decodeCustomGraph, formatTreeInput } from '../engine/structure-input';
+import { markStudyMilestone } from '../engine/study-storage';
 
 function describeInput(algo: NonNullable<ReturnType<typeof getAlgorithm>>, input: number[]): string {
   if (algo.input?.format === 'string-match') {
@@ -81,7 +82,7 @@ export function PracticeLab({ exercise }: { exercise?: ExerciseReplay }) {
     setAnswer(value);
     const id = practiceQuestionId(taskAlgo.slug, task);
     if (value === task.answer) {
-      try { localStorage.setItem(`dsv-practice-${taskAlgo.slug}`, 'done'); } catch { /* 浏览器存储不可用时也能答题。 */ }
+      markStudyMilestone(taskAlgo.slug, 'passed');
       if (reviewing) updateMistakes(mistakes.filter((item) => item.id !== id));
     } else {
       const mistake = { id, slug: taskAlgo.slug, choice: value, question: task };

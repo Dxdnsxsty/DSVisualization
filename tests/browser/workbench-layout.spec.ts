@@ -32,3 +32,27 @@ test('工作台使用桌面宽度、侧栏保持可见，窄屏代码不撑宽�
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   }
 });
+
+test('讲解、自测和继续学习在桌面分栏，窄屏依次排列', async ({ page }, testInfo) => {
+  const desktop = testInfo.project.name === 'desktop';
+  if (!desktop) await page.setViewportSize({ width: 320, height: 750 });
+  await page.goto('/#/algo/sort/select-sort');
+  if (!desktop) await page.locator('.mobile-tabs').getByRole('button', { name: '讲解', exact: true }).click();
+  const panel = page.locator('.explain');
+  await expect(panel.getByRole('heading', { name: '图文讲解' })).toBeVisible();
+  const content = (await panel.locator('.lesson-content').boundingBox())!;
+  const quiz = (await panel.locator('.quiz').boundingBox())!;
+  const related = (await panel.locator('.related').boundingBox())!;
+  if (desktop) {
+    expect(quiz.x).toBeGreaterThan(content.x + content.width);
+    expect(quiz.y).toBe(content.y);
+  } else {
+    expect(quiz.x).toBe(content.x);
+    expect(quiz.y).toBeGreaterThan(content.y + content.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  }
+  expect(related.y).toBeGreaterThan(Math.max(quiz.y + quiz.height, content.y + content.height));
+  const buttons = panel.locator('.quiz-item').first().getByRole('button');
+  await expect(buttons.nth(1)).toBeVisible();
+  expect((await buttons.first().boundingBox())!.width).toBeCloseTo((await buttons.nth(1).boundingBox())!.width, 0);
+});

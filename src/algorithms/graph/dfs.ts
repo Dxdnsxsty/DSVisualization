@@ -92,6 +92,7 @@ export const dfsGraph: AlgorithmMeta = {
     const visited: boolean[] = Array(n).fill(false);
     const parents: (number | undefined)[] = Array(n);
     let checking: { from: number; to: number; state: EdgeState } | undefined;
+    const order: string[] = [];
 
     const push = (anchor: string, phase: string, caption: string, stack: number[]) => {
       const current = stack.at(-1);
@@ -129,6 +130,7 @@ export const dfsGraph: AlgorithmMeta = {
           {
             当前顶点: callStack.at(-1) ?? '—',
             已访问: visited.map((b, i) => (b ? vertices[i] : '')).filter(Boolean).join('') || '空',
+            遍历序列: order.join('') || '空',
             递归深度: stack.length,
           },
           caption,
@@ -139,6 +141,7 @@ export const dfsGraph: AlgorithmMeta = {
 
     const dfs = (v: number, stack: number[]): void => {
       stack.push(v);
+      order.push(vertices[v]);
       push('visit', '访问顶点', `进入 ${vertices[v]}，把它加入遍历序列。`, stack);
       visited[v] = true;
       push('mark', '标记已访问', `visited[${vertices[v]}] = 1，之后不会再进入它。`, stack);

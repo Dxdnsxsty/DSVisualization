@@ -7,11 +7,13 @@ test('language switch preserves the current lesson and playback step', async ({ 
   const turn = page.getByRole('button', { name: 'Switch to English' });
   await expect(page.locator('.topright .github-link')).toBeVisible();
   await expect(turn).toBeVisible();
+  await expect(page.locator('.topright')).not.toContainText('开源 · 无登录 · 无后端');
 
   const controls = page.locator('.col-center > .controls-panel');
   await controls.getByTitle('下一步 (→)').click();
   await turn.click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('.topright')).not.toContainText('Open source · No login · No backend');
   await expect(page.getByRole('heading', { name: 'Graphs · Breadth-First Search (BFS)' })).toBeVisible();
   await expect(controls.getByRole('slider', { name: 'Playback Progress' })).toHaveValue('1');
   await expect(controls.locator('.caption-text')).not.toContainText(/\p{Script=Han}/u);

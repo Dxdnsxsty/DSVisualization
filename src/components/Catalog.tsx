@@ -5,49 +5,16 @@ import { navigate } from '../engine/router';
 import { usePlayer } from '../engine/player';
 import { rememberScroll } from '../engine/scroll';
 import { matchesAlgorithm } from '../engine/algorithm-search';
-
-const KEY = 'dsv-learned';
-const LEARNED_CHANGE = 'dsv-learned-change';
-
-function learnedSnapshot(): string {
-  try { return localStorage.getItem(KEY) ?? '[]'; } catch { return '[]'; }
-}
-
-function parseLearned(snapshot: string): string[] {
-  try {
-    const slugs: unknown = JSON.parse(snapshot);
-    return Array.isArray(slugs) ? slugs.filter((slug): slug is string => typeof slug === 'string') : [];
-  } catch { return []; }
-}
-
-function subscribeLearned(listener: () => void): () => void {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === KEY || event.key === null) listener();
-  };
-  window.addEventListener(LEARNED_CHANGE, listener);
-  window.addEventListener('storage', onStorage);
-  return () => {
-    window.removeEventListener(LEARNED_CHANGE, listener);
-    window.removeEventListener('storage', onStorage);
-  };
-}
-
-export function markLearned(slug: string): void {
-  try {
-    const set = new Set(parseLearned(learnedSnapshot()));
-    if (set.has(slug)) return;
-    set.add(slug);
-    localStorage.setItem(KEY, JSON.stringify([...set]));
-    window.dispatchEvent(new Event(LEARNED_CHANGE));
-  } catch { /* 隐私模式下 localStorage 不可用，忽略即可 */ }
-}
+import { studyMilestonesSnapshot, subscribeStudy } from '../engine/study-storage';
 
 export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNavigate?: () => void }) {
   const t = useTranslate();
   const [query, setQuery] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
-  const snapshot = useSyncExternalStore(subscribeLearned, learnedSnapshot, () => '[]');
-  const learned = new Set(parseLearned(snapshot));
+  const snapshot = useSyncExternalStore(subscribeStudy, studyMilestonesSnapshot, () => '[[],[]]');
+  const [watchedSlugs, passedSlugs]: string[][] = JSON.parse(snapshot);
+  const watched = new Set(watchedSlugs.filter(getAlgorithm));
+  const passed = new Set(passedSlugs.filter(getAlgorithm));
   const q = query.trim().toLowerCase();
 
   useLayoutEffect(() => {
@@ -95,8 +62,10 @@ export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNa
                     onNavigate?.();
                   }}
                 >
-                  <span className={learned.has(a.slug) ? 'dot done' : 'dot'} />
+                  <span className={watched.has(a.slug) ? 'dot done' : 'dot'}
+                    title={t(watched.has(a.slug) ? '已看完演示' : '未看完演示')} aria-hidden="true" />
                   <span className="cat-name">{t(a.title)}</span>
+                  {passed.has(a.slug) && <span className="cat-pass" title={t('练习通过')} aria-label={t('练习通过')}>✓</span>}
                 </button>
               ))}
               {cat.stub && !q && <div className="cat-empty">{t("本章节暂无可视化，欢迎提 PR 补充")}</div>}
@@ -104,7 +73,9 @@ export function Catalog({ currentSlug, onNavigate }: { currentSlug: string; onNa
           );
         })}
       </div>
-      <div className="catalog-foot">{t("已学 ")}{learned.size} / {algorithms.length}{t(" · 进度仅保存在本机浏览器，无需登录")}</div>
+      <div className="catalog-foot">
+        {t('已看完演示')} {watched.size} / {algorithms.length} · {t('练习通过')} {passed.size} / {algorithms.length}
+      </div>
     </nav>
   );
 }

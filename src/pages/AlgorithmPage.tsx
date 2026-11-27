@@ -9,7 +9,7 @@ import { Controls, InputBar } from '../components/Controls';
 import { CodePane, VarPane } from '../components/CodePane';
 import { Catalog } from '../components/Catalog';
 import { Explain } from '../components/Explain';
-import { NotFound } from '../components/Placeholder';
+import { NotFound } from './MapPage';
 
 interface Props {
   slug: string;

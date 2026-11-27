@@ -5,7 +5,7 @@ export interface ExerciseReplay extends AlgorithmReplay { slug: string }
 export interface ComparisonReplay { left: string; right: string; input: number[]; steps: [number, number] }
 
 export type Route = { name: 'map' } | { name: 'lab'; exercise?: ExerciseReplay } |
-  { name: 'compare'; comparison?: ComparisonReplay } |
+  { name: 'compare'; comparison?: ComparisonReplay; graph?: true } |
   { name: 'algo'; slug: string; replay?: AlgorithmReplay; comparison?: ComparisonReplay };
 
 function readReplay(params: URLSearchParams): AlgorithmReplay | undefined {
@@ -62,8 +62,9 @@ export function parseHash(): Route {
     }
     return { name: 'lab' };
   }
-  if (h === 'compare') {
+  if (h === 'compare' || h === 'compare/graph') {
     const comparison = queryAt === -1 ? undefined : readComparison(new URLSearchParams(hash.slice(queryAt + 1)));
+    if (h === 'compare/graph') return { name: 'compare', comparison, graph: true };
     return comparison ? { name: 'compare', comparison } : { name: 'compare' };
   }
   return { name: 'map' }; // 打开即进算法地图，先看全貌再进具体算法
@@ -84,7 +85,8 @@ function comparisonParams({ left, right, input, steps }: ComparisonReplay): URLS
 }
 
 export function comparisonReplayPath(comparison: ComparisonReplay): string {
-  return 'compare?' + comparisonParams(comparison);
+  const path = comparison.left === 'graph/bfs' && comparison.right === 'graph/dfs' ? 'compare/graph' : 'compare';
+  return path + '?' + comparisonParams(comparison);
 }
 
 export function exerciseReplayPath({ slug, input, step }: ExerciseReplay): string {
