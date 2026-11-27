@@ -5,7 +5,7 @@ import { usePlayer } from '../engine/player';
 import { CustomGraphDialog, CustomTreeDialog } from './StructureDialogs';
 import { ShareReplay } from './ShareReplay';
 import type { AlgorithmMeta } from '../engine/types';
-import { decodeMatchInput, DEFAULT_INPUT, GRAPH_SIZE_INPUT, parseInputText, parseMatchInput, randomInput, validateInput } from '../engine/input';
+import { arrayPositionLabel, decodeArrayPositionInput, decodeMatchInput, DEFAULT_INPUT, encodeArrayPositionInput, GRAPH_SIZE_INPUT, parseInputText, parseMatchInput, randomInput, validateInput } from '../engine/input';
 import { levelTree } from '../engine/structure-input';
 import { hasCustomPracticeQuestion, supportsCustomPractice } from '../engine/practice';
 import { exerciseReplayPath, navigate } from '../engine/router';
@@ -95,10 +95,15 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
   const stringMatch = spec.format === 'string-match';
   const graphSize = spec.format === 'graph-size';
   const treeLevel = spec.format === 'tree-level';
+  const positionLabel = arrayPositionLabel(spec.format);
   const graphIsCustom = graphSize && input[0] === -1;
   const preset = graphIsCustom ? algo.defaultInput : input;
   const inputDraft = (input: number[]): [string, string] => {
     if (stringMatch) return decodeMatchInput(input);
+    if (positionLabel) {
+      const { values, position } = decodeArrayPositionInput(input);
+      return [values.join(', '), String(position)];
+    }
     return [graphSize ? String(input[0]) : input.join(', '), ''];
   };
   const [draft, setDraft] = useState<[string, string]>(() => inputDraft(preset));
@@ -111,7 +116,7 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
   useEffect(() => {
     setDraft(inputDraft(preset));
     setError('');
-  }, [preset, stringMatch, graphSize]);
+  }, [preset, stringMatch, graphSize, positionLabel]);
 
   const applyInput = (nextInput: number[]) => {
     setError('');
@@ -130,9 +135,11 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
       if (nums.length !== 1 || presetError) { setError('请输入一个 3–6 的顶点数量'); return; }
       if (algo.graphCases) nums.push(preset[1] ?? 0);
     }
-    const err = validateInput(spec, nums);
+    const position = /^\d+$/.test(draft[1].trim()) ? Number(draft[1]) : 0;
+    const nextInput = positionLabel ? encodeArrayPositionInput(nums, position) : nums;
+    const err = validateInput(spec, nextInput);
     if (err) { setError(err); return; }
-    applyInput(nums);
+    applyInput(nextInput);
   };
 
   const random = () => {
@@ -175,6 +182,11 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
             <label htmlFor="dsv-pattern">{t("模式串")}</label>
             <input id="dsv-pattern" value={draft[1]} onChange={(e) => setDraft([draft[0], e.target.value])} placeholder="abc" spellCheck={false} />
           </>}
+          {positionLabel && <div className="input-position">
+            <label htmlFor="dsv-position">{t(positionLabel)}</label>
+            <input id="dsv-position" inputMode="numeric" value={draft[1]} onChange={(e) => setDraft([draft[0], e.target.value])}
+              aria-describedby="dsv-position-hint" />
+          </div>}
           <button className="primary" type="submit">{t("生成动画")}</button>
           <button type="button" onClick={random}>{t("随机")}</button>
           <button type="button" onClick={() => {
@@ -189,7 +201,7 @@ export function InputBar({ algo }: { algo: AlgorithmMeta }) {
             onClick={() => applyInput([preset[0], example.id])}>{t(example.label)}</button>)}
           {!graphIsCustom && <span className="muted">{t(presetCase?.description)}</span>}
         </div>}
-        <div className="input-hint">
+        <div className="input-hint" id={positionLabel ? 'dsv-position-hint' : undefined}>
           {error ? <span className="error" role="alert">{t(error)}</span> : <span className="muted">{t(algo.inputHint)}</span>}
         </div>
       </form>

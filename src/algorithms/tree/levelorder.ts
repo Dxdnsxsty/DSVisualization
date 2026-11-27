@@ -11,7 +11,7 @@ export const levelorderTree: AlgorithmMeta = {
   chapter: '第 7 章 树和二叉树',
   category: 'ch7',
   summary: '队列逐层扩展，先进先出保证按层访问。',
-  complexity: { time: 'O(n)', space: 'O(w)', extra: 'w 为树的最大宽度，即队列峰值' },
+  complexity: { time: 'O(n)', space: 'O(w)', extra: 'w 为树的最大宽度' },
   difficulty: '入门',
   inputHint: '按层序输入 1–15 个结点，支持整数或单个英文字母。用 null 表示空孩子，如 A, B, C, null, D。',
   defaultInput: DEFAULT,
@@ -50,7 +50,7 @@ export const levelorderTree: AlgorithmMeta = {
       body: '层次遍历不走递归，而是借一个队列：根先入队；只要队列不空，就取出队首结点访问，并把它非空的左右孩子依次入队。队列「先进先出」的特性天然保证了先入队的上层结点先被访问，于是输出顺序就是从上到下、从左到右。',
       points: [
         '入队顺序固定为「先左后右」，否则同一层的输出会左右颠倒',
-        '队列里最多同时存放一层的结点，空间是 O(w) 而不是 O(h)',
+        '队列可能同时包含相邻两层的部分结点，空间为 O(w)，其中 w 是树的最大宽度',
         '必须在出队时判空孩子，空指针不能入队',
       ],
     },
@@ -65,7 +65,7 @@ export const levelorderTree: AlgorithmMeta = {
   ],
   quiz: [
     { q: '层次遍历需要借助哪种数据结构？', options: ['栈', '队列', '优先队列', '哈希表'], answer: 1, explain: '先进先出才能保证上层结点先于下层结点被访问，所以用队列。' },
-    { q: '层次遍历的空间复杂度取决于？', options: ['树高 h', '结点总数 n', '树的最大宽度 w', '常数 O(1)'], answer: 2, explain: '队列峰值出现在最宽的一层，约等于该层结点数，即 O(w)。' },
+    { q: '层次遍历的空间复杂度取决于？', options: ['树高 h', '结点总数 n', '树的最大宽度 w', '常数 O(1)'], answer: 2, explain: '队列可能包含相邻两层的结点，每层至多 w 个，因此辅助空间为 O(w)。' },
     { q: '对层序为 1 2 3 4 5 6 7 的完全二叉树做层次遍历，输出是？', options: ['1 2 3 4 5 6 7', '1 2 4 5 3 6 7', '4 2 5 1 6 3 7', '7 6 5 4 3 2 1'], answer: 0, explain: '逐层从左到右，正好就是建树时的层序数组。' },
   ],
   generate: (input) => {

@@ -75,6 +75,49 @@ test('English Floyd steps retain the numeric comparison and matrix indices', asy
   await expect(caption).toHaveText('D[D][A] + D[A][B] = 7 + 3 = 10 < ∞. The path through A is shorter, so update the distance.');
 });
 
+test('the English sentinel label stays inside its linked-list node', async ({ page }) => {
+  await page.goto('/#/algo/list/head-insert-sentinel');
+  await page.getByRole('button', { name: 'Switch to English' }).click();
+  const label = page.locator('.stage-canvas svg text').filter({ hasText: /^Sentinel$/ });
+  await expect(label).toBeVisible();
+  const { text, cell } = await label.evaluate((element) => ({
+    text: element.getBoundingClientRect().toJSON(),
+    cell: element.parentElement!.querySelector('rect')!.getBoundingClientRect().toJSON(),
+  }));
+  expect(text.left).toBeGreaterThan(cell.left);
+  expect(text.right).toBeLessThan(cell.right);
+  expect(text.top).toBeGreaterThan(cell.top);
+  expect(text.bottom).toBeLessThan(cell.bottom);
+});
+
+test('English quicksort and adjacency list lessons use accurate labels and captions', async ({ page }) => {
+  await page.goto('/#/algo/sort/quick-sort');
+  await page.getByRole('button', { name: 'Switch to English' }).click();
+  const controls = page.locator('.col-center > .controls-panel');
+  await controls.getByTitle('Next step (→)').click();
+  await expect(controls.locator('.caption-text')).toHaveText('Save A[0] = 49 as the pivot, leaving the first gap at 0.');
+  const tabs = page.locator('.mobile-tabs');
+  if (await tabs.isVisible()) await tabs.getByRole('button', { name: 'Lesson', exact: true }).click();
+  await expect(page.locator('.lesson-content')).toContainText('median-of-three pivot');
+
+  await page.goto('/#/algo/graph/adj-list');
+  if (await tabs.isVisible()) await tabs.getByRole('button', { name: 'Lesson', exact: true }).click();
+  await expect(page.locator('.lesson-content')).toContainText('An adjacency list stores a linked list of neighbors for each vertex.');
+});
+
+test('heapsort and tree lessons use standard English terminology', async ({ page }) => {
+  await page.goto('/#/algo/sort/heap-sort');
+  await page.getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.getByRole('heading', { name: 'Heapsort', exact: true })).toBeVisible();
+  await expect(page.locator('.col-center > .controls-panel .caption-text')).toContainText('max heap');
+  const tabs = page.locator('.mobile-tabs');
+  if (await tabs.isVisible()) await tabs.getByRole('button', { name: 'Lesson', exact: true }).click();
+  await expect(page.locator('.lesson-content')).toContainText('complete binary tree');
+  await page.goto('/#/algo/tree/preorder');
+  if (await tabs.isVisible()) await tabs.getByRole('button', { name: 'Lesson', exact: true }).click();
+  await expect(page.locator('.lesson-content')).toContainText('Preorder visits the root, then the left subtree, then the right subtree.');
+});
+
 test('topological sorting uses English in code messages and input-based practice', async ({ page }) => {
   await page.goto('/#/algo/graph/topo-sort');
   await page.getByRole('button', { name: 'Switch to English' }).click();

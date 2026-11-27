@@ -17,7 +17,7 @@ function readReplay(params: URLSearchParams): AlgorithmReplay | undefined {
   if (Number.isSafeInteger(step) && input.every(Number.isSafeInteger)) return { input, step };
 }
 
-function readComparison(params: URLSearchParams): ComparisonReplay | undefined {
+export function readComparisonReplay(params: URLSearchParams): ComparisonReplay | undefined {
   const left = params.get('left');
   const right = params.get('right');
   const replay = readReplay(params);
@@ -46,7 +46,7 @@ export function parseHash(): Route {
       const replay = readReplay(params);
       if (replay) {
         const from = params.get('comparison');
-        const comparison = from ? readComparison(new URLSearchParams(from)) : undefined;
+        const comparison = from ? readComparisonReplay(new URLSearchParams(from)) : undefined;
         return comparison ? { name: 'algo', slug, replay, comparison } : { name: 'algo', slug, replay };
       }
     }
@@ -63,7 +63,7 @@ export function parseHash(): Route {
     return { name: 'lab' };
   }
   if (h === 'compare' || h === 'compare/graph') {
-    const comparison = queryAt === -1 ? undefined : readComparison(new URLSearchParams(hash.slice(queryAt + 1)));
+    const comparison = queryAt === -1 ? undefined : readComparisonReplay(new URLSearchParams(hash.slice(queryAt + 1)));
     if (h === 'compare/graph') return { name: 'compare', comparison, graph: true };
     return comparison ? { name: 'compare', comparison } : { name: 'compare' };
   }

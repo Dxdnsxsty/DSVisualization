@@ -4,15 +4,20 @@ import { readStudyData, STUDY_KEY } from './study-storage';
 
 const MISTAKE_PREFIX = 'dsv-mistake:';
 
-export interface SavedMistake {
+export interface MistakeState {
   id: string;
   slug: string;
-  choice: string;
+  choice: string | null;
   input?: number[];
+  updatedAt: number;
 }
 
-export interface PracticeMistake extends SavedMistake {
+interface RestoredMistakeState extends MistakeState {
   question: PracticeQuestion;
+}
+
+export interface PracticeMistake extends RestoredMistakeState {
+  choice: string;
 }
 
 export function practiceQuestionId(slug: string, question: PracticeQuestion): string {
@@ -30,16 +35,30 @@ function migrateId(id: string, slug: string, custom: boolean): string {
   return id;
 }
 
-export function restorePracticeMistakes(raw: unknown): PracticeMistake[] {
+function identityFromId(id: string): Pick<MistakeState, 'id' | 'slug' | 'input'> | undefined {
+  try {
+    const parts: unknown = JSON.parse(id);
+    if (!Array.isArray(parts) || parts.length !== 6) return;
+    const [kind, slug, input] = parts;
+    if ((kind !== 'custom' && kind !== 'preset') || typeof slug !== 'string') return;
+    return { id, slug, input: kind === 'custom' ? input : undefined };
+  } catch { return undefined; }
+}
+
+function timestamp(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
+export function restoreMistakeStates(raw: unknown): RestoredMistakeState[] {
   try {
     if (!Array.isArray(raw)) return [];
     const questions = new Map<string, Map<string, PracticeQuestion>>();
-    const mistakes = new Map<string, PracticeMistake>();
+    const mistakes = new Map<string, RestoredMistakeState>();
 
     for (const entry of raw) {
       if (!entry || typeof entry.id !== 'string' || typeof entry.slug !== 'string' ||
-        typeof entry.choice !== 'string' || entry.choice.length > 512) continue;
-      const { id, slug, choice, input } = entry as SavedMistake;
+        (entry.choice !== null && (typeof entry.choice !== 'string' || entry.choice.length > 512))) continue;
+      const { id, slug, choice, input } = entry as MistakeState;
       const algo = getAlgorithm(slug);
       if (!algo || (input !== undefined && (!Array.isArray(input) || input.length > 99 || !input.every(Number.isSafeInteger)))) continue;
       const key = JSON.stringify([slug, input]);
@@ -49,9 +68,9 @@ export function restorePracticeMistakes(raw: unknown): PracticeMistake[] {
       }
       const stableId = migrateId(id, slug, input !== undefined);
       const question = questions.get(key)?.get(stableId);
-      if (question && choice !== question.answer) {
-        mistakes.set(stableId, { id: stableId, slug, choice, question });
-      }
+      if (question && choice !== question.answer) mergeMistakeState(mistakes, {
+        id: stableId, slug, input, choice, question, updatedAt: timestamp(entry.updatedAt),
+      });
     }
     return [...mistakes.values()];
   } catch {
@@ -59,8 +78,15 @@ export function restorePracticeMistakes(raw: unknown): PracticeMistake[] {
   }
 }
 
-export function readPracticeMistakes(base = readStudyData().mistakes): PracticeMistake[] {
-  const mistakes = new Map(restorePracticeMistakes(base).map((record) => [record.id, record]));
+export function mergeMistakeState<T extends MistakeState>(records: Map<string, T>, incoming: T): void {
+  const prior = records.get(incoming.id);
+  if (!prior || incoming.updatedAt > prior.updatedAt ||
+    (incoming.updatedAt === prior.updatedAt && (
+      incoming.choice === null || (prior.choice !== null && incoming.choice > prior.choice)
+    ))) records.set(incoming.id, incoming);
+}
+
+export function readMistakeStates(base = readStudyData().mistakes): RestoredMistakeState[] {
   const changes: { record: unknown; order: number }[] = [];
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -68,7 +94,10 @@ export function readPracticeMistakes(base = readStudyData().mistakes): PracticeM
       if (!key?.startsWith(MISTAKE_PREFIX)) continue;
       const id = key.slice(MISTAKE_PREFIX.length);
       const value = localStorage.getItem(key);
-      if (value === 'null') mistakes.delete(id);
+      if (value === 'null') {
+        const identity = identityFromId(id);
+        if (identity) changes.push({ record: { ...identity, choice: null, updatedAt: 0 }, order: 0 });
+      }
       else if (value) {
         try {
           const change = JSON.parse(value);
@@ -78,25 +107,30 @@ export function readPracticeMistakes(base = readStudyData().mistakes): PracticeM
     }
   } catch { /* Storage may be unavailable. */ }
   const ordered = changes.sort((a, b) => a.order - b.order).map(({ record }) => record);
-  for (const change of restorePracticeMistakes(ordered)) mistakes.set(change.id, change);
-  return [...mistakes.values()];
+  return restoreMistakeStates([...base, ...ordered]);
 }
 
-export function serializeMistakes(mistakes: PracticeMistake[]): SavedMistake[] {
-  return mistakes.map(({ id, slug, choice, question }) => ({
-    id, slug, choice, input: question.custom ? question.input : undefined,
-  }));
+export function readPracticeMistakes(): PracticeMistake[] {
+  return readMistakeStates().filter((record): record is PracticeMistake => record.choice !== null);
+}
+
+export function serializeMistakeState({ id, slug, input, choice, updatedAt }: MistakeState): MistakeState {
+  return { id, slug, input, choice, updatedAt };
 }
 
 export function updatePracticeMistake(id: string, mistake: PracticeMistake | null): boolean {
   try {
-    // Each question has its own key so updates in separate tabs cannot overwrite the list.
-    // A null value suppresses older copies in the study record or an imported backup.
+    // Store each question separately so distinct updates in different tabs cannot overwrite one another.
+    const identity = identityFromId(id);
+    if (!identity) return false;
     const key = MISTAKE_PREFIX + id;
-    let recordedAt = Date.now();
-    try { recordedAt = JSON.parse(localStorage.getItem(key) ?? 'null')?.recordedAt ?? recordedAt; }
+    const prior = readMistakeStates().find((record) => record.id === id);
+    const now = Date.now();
+    let recordedAt = now;
+    try { recordedAt = timestamp(JSON.parse(localStorage.getItem(key) ?? 'null')?.recordedAt) || now; }
     catch { /* Replace a damaged entry. */ }
-    const value = mistake ? { ...serializeMistakes([mistake])[0], recordedAt } : null;
+    const updatedAt = Math.min(Number.MAX_SAFE_INTEGER, Math.max(now, (prior?.updatedAt ?? 0) + 1));
+    const value = { ...identity, choice: mistake?.choice ?? null, recordedAt, updatedAt };
     localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch { return false; }

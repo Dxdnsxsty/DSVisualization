@@ -38,20 +38,46 @@ export function parseMatchInput(text: string, pattern: string): ReturnType<typeo
   return { nums: [match.length, ...Array.from(main + match, (letter) => letter.charCodeAt(0) - 96)], error: null };
 }
 
+// Encode the position outside the range of list values. Older links only store
+// data and use position 3 when the input is long enough.
+const ARRAY_POSITION_BASE = -1000;
+
+export function arrayPositionLabel(format: InputSpec['format']) {
+  if (format === 'array-insert') return '插入位置';
+  if (format === 'array-delete') return '删除位置';
+}
+
+export function encodeArrayPositionInput(values: number[], position: number): number[] {
+  return [ARRAY_POSITION_BASE - position, ...values];
+}
+
+export function decodeArrayPositionInput(input: number[]) {
+  if (input[0] <= ARRAY_POSITION_BASE) {
+    return { values: input.slice(1), position: ARRAY_POSITION_BASE - input[0] };
+  }
+  return { values: input, position: Math.min(3, input.length) };
+}
+
 /** 合法返回 null，否则返回给用户看的错误文案 */
 export function validateInput(spec: InputSpec, nums: number[]): string | null {
+  const positionLabel = arrayPositionLabel(spec.format);
+  const positioned = positionLabel ? decodeArrayPositionInput(nums) : undefined;
+  const values = positioned?.values ?? nums;
   const min = spec.min ?? -999;
   const max = spec.max ?? 999;
   const minLen = spec.minLen ?? 2;
   const maxLen = spec.maxLen ?? 10;
 
   if (minLen === maxLen) {
-    if (nums.length !== minLen) return `本算法需要 ${minLen} 个数`;
-  } else if (nums.length < minLen || nums.length > maxLen) {
+    if (values.length !== minLen) return `本算法需要 ${minLen} 个数`;
+  } else if (values.length < minLen || values.length > maxLen) {
     return `请输入 ${minLen}–${maxLen} 个数`;
   }
-  if (nums.some((n) => !Number.isInteger(n))) return '只能输入整数';
-  if (nums.some((n) => n < min || n > max)) return `数值需在 ${min} ~ ${max} 之间`;
+  if (values.some((n) => !Number.isInteger(n))) return '只能输入整数';
+  if (values.some((n) => n < min || n > max)) return `数值需在 ${min} ~ ${max} 之间`;
+  if (positioned && (!Number.isInteger(positioned.position) || positioned.position < 1 || positioned.position > values.length)) {
+    return `${positionLabel}须为 1–${values.length} 的整数`;
+  }
   return spec.check ? spec.check(nums) : null;
 }
 
@@ -70,7 +96,8 @@ export function randomInput(spec: InputSpec): number[] {
   const hi = span <= 20 ? max : Math.min(max, 99);
   const sample = () => {
     const len = minLen === maxLen ? minLen : minLen + Math.floor(Math.random() * (maxLen - minLen + 1));
-    return Array.from({ length: len }, () => lo + Math.floor(Math.random() * (hi - lo + 1)));
+    const values = Array.from({ length: len }, () => lo + Math.floor(Math.random() * (hi - lo + 1)));
+    return arrayPositionLabel(spec.format) ? encodeArrayPositionInput(values, 1 + Math.floor(Math.random() * len)) : values;
   };
   // min/max 只描述单值范围，字段之间的约束（如「人数 2–12、报数 1–9」）只能靠 check 判断，
   // 因此单次均匀采样未必合法：重试若干次，避免用户点「随机」直接撞上报错。

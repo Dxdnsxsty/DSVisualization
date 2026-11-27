@@ -628,6 +628,8 @@ select:hover { border-color: #d8dbe3; }
 .input-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .input-row label { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .input-row input { flex: 1; min-width: 170px; font-family: ui-monospace, Consolas, monospace; }
+.input-position { display: flex; align-items: center; gap: 8px; }
+.input-position input { flex: none; width: 4rem; min-width: 0; }
 .input-hint {
   display: flex;
   justify-content: space-between;

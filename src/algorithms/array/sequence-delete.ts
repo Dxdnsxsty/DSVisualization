@@ -1,21 +1,14 @@
-import type { AlgorithmMeta, NodeState, TraceStep } from '../../engine/types';
+import type { AlgorithmMeta, CodeLine, NodeState, TraceStep } from '../../engine/types';
+import { decodeArrayPositionInput } from '../../engine/input';
 import { arrayScene, cells, makeStep } from '../../engine/scene';
 
 const CAP = 8;
-const POS = 2; // 位序 3 → 下标 2
+const defaultInput = [20, 60, 30, 10, 40, 50];
 
-export const sequenceDelete: AlgorithmMeta = {
-  slug: 'array/sequence-delete',
-  title: '顺序表 · 删除操作',
-  chapter: '第 2 章 线性表',
-  category: 'ch2',
-  summary: '删除位序 3 的元素，观察后续元素依次前移。',
-  complexity: { time: 'O(n)', space: 'O(1)', extra: '平均移动约 n/2 个元素' },
-  difficulty: '入门',
-  inputHint: '输入若干整数作为初始顺序表，固定删除位序 3（下标 2）的元素。',
-  defaultInput: [20, 60, 30, 10, 40, 50],
-  input: { min: -999, max: 999, minLen: 3, maxLen: 8 },
-  code: {
+function exampleCode(input: number[]): Record<string, CodeLine[]> {
+  const { values, position } = decodeArrayPositionInput(input);
+  const length = values.length;
+  return {
     cpp: [
       { text: '#include <iostream>' },
       { text: 'bool ListDelete(int L[], int &length, int pos, int &value) {' },
@@ -27,8 +20,8 @@ export const sequenceDelete: AlgorithmMeta = {
       { text: '  return true;', anchor: 'done' },
       { text: '}' },
       { text: 'int main() {' },
-      { text: '  int L[8] = {20, 60, 30, 10, 40, 50}; int length = 6, v;' },
-      { text: '  ListDelete(L, length, 3, v);' },
+      { text: `  int L[${CAP}] = {${values.join(', ')}}; int length = ${length}, v;` },
+      { text: `  ListDelete(L, length, ${position}, v);` },
       { text: '  std::cout << "deleted=" << v << std::endl;' },
       { text: '  return 0;' },
       { text: '}' },
@@ -41,10 +34,25 @@ export const sequenceDelete: AlgorithmMeta = {
       { text: '        L[j] = L[j + 1]', anchor: 'shift' },
       { text: '    length -= 1', anchor: 'len' },
       { text: '    return value', anchor: 'done' },
-      { text: 'L = [20, 60, 30, 10, 40, 50]' },
-      { text: 'print(list_delete(L, 6, 3), L[:5])' },
+      { text: `L = [${values.join(', ')}]` },
+      { text: `print(list_delete(L, ${length}, ${position}), L[:${length - 1}])` },
     ],
-  },
+  };
+}
+
+export const sequenceDelete: AlgorithmMeta = {
+  slug: 'array/sequence-delete',
+  title: '顺序表 · 删除操作',
+  chapter: '第 2 章 线性表',
+  category: 'ch2',
+  summary: '删除指定位置的元素，观察后续元素依次前移。',
+  complexity: { time: 'O(n)', space: 'O(1)', extra: '平均移动约 n/2 个元素' },
+  difficulty: '入门',
+  inputHint: '输入 1–8 个整数作为初始顺序表。删除位置从 1 开始，最多等于原表长。',
+  defaultInput,
+  input: { format: 'array-delete', min: -999, max: 999, minLen: 1, maxLen: CAP },
+  code: exampleCode(defaultInput),
+  codeForInput: (lang, input) => exampleCode(input)[lang],
   doc: [
     {
       heading: '核心思想',
@@ -67,11 +75,12 @@ export const sequenceDelete: AlgorithmMeta = {
   ],
   generate: (input) => {
     const steps: TraceStep[] = [];
-    const initial = (input.length >= 3 ? input : [20, 60, 30, 10, 40, 50]).slice(0, CAP);
+    const { values: initial, position } = decodeArrayPositionInput(input.length ? input : defaultInput);
+    const index = position - 1;
     const L: (number | null)[] = Array.from({ length: CAP }, () => null);
     initial.forEach((v, i) => { L[i] = v; });
     let len = initial.length;
-    const removed = L[POS];
+    const removed = initial[index];
     let k = 0;
 
     const push = (
@@ -85,21 +94,21 @@ export const sequenceDelete: AlgorithmMeta = {
       steps.push(makeStep(
         k++, anchor, phase,
         arrayScene(cells(L, CAP, states, labels), [], CAP, `容量 ${CAP} · 表长 ${len}`),
-        { 位序: 3, 下标: POS, 表长: len, 被删值: removed ?? '—', ...extra },
+        { 位序: position, 下标: index, 表长: len, 被删值: removed, ...extra },
         caption,
       ));
     };
 
-    push('check', '合法性检查', `检查位序 3 是否在 [1, ${len}] 内：合法，取出 L[2] = ${removed}。`, { [POS]: 'delete' }, { [POS]: 'pos' });
-    for (let j = POS; j < len - 1; j++) {
+    push('check', '合法性检查', `位序 ${position} 在 [1, ${len}] 内，取出 L[${index}] = ${removed}。`, { [index]: 'delete' }, { [index]: 'pos' });
+    for (let j = index; j < len - 1; j++) {
       push('loopHead', '元素前移', `准备用 L[${j + 1}] = ${L[j + 1]} 填补 L[${j}]。`, { [j + 1]: 'active' }, { [j]: 'j' }, { j });
       L[j] = L[j + 1];
       push('shift', '元素前移', `执行 L[${j}] = L[${j + 1}]，元素前移一格。`, { [j]: 'insert' }, { [j]: 'j' }, { j });
     }
     L[len - 1] = null;
     len -= 1;
-    push('len', '更新表长', `表长由 ${len + 1} 变为 ${len}，尾部残留值已失效。`, { [POS]: 'found' });
-    push('done', '完成', `删除结束，共移动 ${initial.length - 1 - POS} 个元素，被删值为 ${removed}。`, { [POS]: 'found' });
+    push('len', '更新表长', `表长由 ${len + 1} 变为 ${len}，尾部残留值已失效。`);
+    push('done', '完成', `删除结束，共移动 ${len - index} 个元素，被删值为 ${removed}。`);
     return steps;
   },
 };

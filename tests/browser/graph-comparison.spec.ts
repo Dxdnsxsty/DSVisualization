@@ -57,6 +57,16 @@ test('两个对比模式各自保留已应用的数据和两侧步骤', async ({
   await expect(sliders.first()).toHaveValue('0');
   await expect(sliders.last()).toHaveValue('2');
   await expect(page.getByRole('status')).toHaveText('已暂停');
+  await page.reload();
+  await expect(page.getByText('顶点 A, B, C, X，起点 C，边 C–A, A–B')).toBeVisible();
+  await expect(sliders.last()).toHaveValue('2');
+  await sort.click();
+  await expect(page.getByLabel('共同输入')).toHaveValue('8, 3, 1');
+  await expect(sliders.first()).toHaveValue('1');
+  await page.goto('/#/compare?left=sort%2Finsert-sort&right=sort%2Fquick-sort&input=7%2C4%2C2&step=2&rightStep=1');
+  await expect(page.getByLabel('共同输入')).toHaveValue('7, 4, 2');
+  await expect(sliders.first()).toHaveValue('2');
+  await expect(sliders.last()).toHaveValue('1');
 });
 
 for (const offline of [false, true]) {

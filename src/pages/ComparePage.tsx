@@ -1,11 +1,11 @@
 import { useTranslate } from '../i18n';
-import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { algorithms, getAlgorithm } from '../algorithms/registry';
 import { Stage } from '../components/Stage';
 import { CustomGraphDialog } from '../components/StructureDialogs';
 import { ShareLink } from '../components/ShareReplay';
 import type { AlgorithmMeta, TraceStep } from '../engine/types';
-import { algorithmReplayPath, comparisonReplayPath, navigate, type ComparisonReplay } from '../engine/router';
+import { algorithmReplayPath, comparisonReplayPath, navigate, readComparisonReplay, type ComparisonReplay } from '../engine/router';
 import { DEFAULT_INPUT, parseInputText, validateInput } from '../engine/input';
 import { comparisonFinished, comparisonReducer, createComparisonPlayback } from '../engine/compare-player';
 import { decodeCustomGraph, parseCustomGraph } from '../engine/structure-input';
@@ -173,8 +173,18 @@ export function ComparePage({ comparison, graph, cache }: {
 }) {
   const t = useTranslate();
   const mode = graph ? 'graph' : 'sort';
-  const saved = comparison ?? cache[mode];
-  const remember: OnSnapshot = (replay) => { cache[mode] = replay; };
+  const storageKey = `dsv-comparison-${mode}`;
+  const [saved] = useState(() => {
+    if (comparison) return comparison;
+    if (cache[mode]) return cache[mode];
+    try { return readComparisonReplay(new URLSearchParams(localStorage.getItem(storageKey) ?? '')); }
+    catch { return undefined; }
+  });
+  const remember: OnSnapshot = useCallback((replay) => {
+    cache[mode] = replay;
+    try { localStorage.setItem(storageKey, comparisonReplayPath(replay).split('?')[1]); }
+    catch { /* Keep the comparison available in this session. */ }
+  }, [cache, mode, storageKey]);
   return (
     <main className="page compare-page">
       <div className="page-intro"><h1>{t("算法对比实验室")}</h1><p>{t("同一组输入，并排观察不同算法的步骤数量、状态变化与最终结果。")}</p></div>

@@ -102,7 +102,7 @@ export function PracticeLab({ exercise }: { exercise?: ExerciseReplay }) {
       markStudyMilestone(taskAlgo.slug, 'passed');
       if (reviewing) updateMistakes(id, null);
     } else {
-      const mistake = { id, slug: taskAlgo.slug, choice: value, question: task };
+      const mistake = { id, slug: taskAlgo.slug, choice: value, question: task, updatedAt: Date.now() };
       updateMistakes(id, mistake);
     }
   };

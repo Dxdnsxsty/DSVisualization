@@ -1,21 +1,16 @@
-import type { AlgorithmMeta, NodeState, TraceStep } from '../../engine/types';
+import type { AlgorithmMeta, CodeLine, NodeState, TraceStep } from '../../engine/types';
+import { decodeArrayPositionInput } from '../../engine/input';
 import { arrayScene, cells, makeStep } from '../../engine/scene';
 
 const CAP = 8;
-const POS = 2; // 位序 3 → 下标 2
+const defaultInput = [20, 60, 30, 10, 40, 99];
 
-export const sequenceInsert: AlgorithmMeta = {
-  slug: 'array/sequence-insert',
-  title: '顺序表 · 插入操作',
-  chapter: '第 2 章 线性表',
-  category: 'ch2',
-  summary: '在位序 3 插入元素，观察后续元素依次后移。',
-  complexity: { time: 'O(n)', space: 'O(1)', extra: '平均移动约 n/2 个元素' },
-  difficulty: '入门',
-  inputHint: '输入若干整数：最后一个数是要插入的值，其余是初始顺序表；固定插入到位序 3（下标 2）。',
-  defaultInput: [20, 60, 30, 10, 40, 99],
-  input: { min: -999, max: 999, minLen: 2, maxLen: 8 },
-  code: {
+function exampleCode(input: number[]): Record<string, CodeLine[]> {
+  const { values, position } = decodeArrayPositionInput(input);
+  const initial = values.slice(0, -1);
+  const value = values.at(-1);
+  const length = initial.length;
+  return {
     cpp: [
       { text: '#include <iostream>' },
       { text: '#define MAX 8' },
@@ -29,8 +24,8 @@ export const sequenceInsert: AlgorithmMeta = {
       { text: '  return true;', anchor: 'done' },
       { text: '}' },
       { text: 'int main() {' },
-      { text: '  int L[MAX] = {20, 60, 30, 10, 40}; int length = 5;' },
-      { text: '  ListInsert(L, length, 3, 99);' },
+      { text: `  int L[MAX] = {${initial.join(', ')}}; int length = ${length};` },
+      { text: `  ListInsert(L, length, ${position}, ${value});` },
       { text: '  for (int i = 0; i < length; i++) std::cout << L[i] << " ";' },
       { text: '  return 0;' },
       { text: '}' },
@@ -45,11 +40,26 @@ export const sequenceInsert: AlgorithmMeta = {
       { text: '    L[pos - 1] = value', anchor: 'assign' },
       { text: '    length += 1', anchor: 'len' },
       { text: '    return True', anchor: 'done' },
-      { text: 'L = [20, 60, 30, 10, 40] + [0] * 3' },
-      { text: 'list_insert(L, 5, 3, 99)' },
-      { text: 'print(L[:6])' },
+      { text: `L = [${initial.join(', ')}] + [0] * ${CAP - length}` },
+      { text: `list_insert(L, ${length}, ${position}, ${value})` },
+      { text: `print(L[:${length + 1}])` },
     ],
-  },
+  };
+}
+
+export const sequenceInsert: AlgorithmMeta = {
+  slug: 'array/sequence-insert',
+  title: '顺序表 · 插入操作',
+  chapter: '第 2 章 线性表',
+  category: 'ch2',
+  summary: '在指定位置插入元素，观察该位置及之后的元素依次后移。',
+  complexity: { time: 'O(n)', space: 'O(1)', extra: '平均移动约 n/2 个元素' },
+  difficulty: '入门',
+  inputHint: '最后一个数是要插入的值，其余是初始顺序表。插入位置从 1 开始，填表长加 1 可插在末尾。',
+  defaultInput,
+  input: { format: 'array-insert', min: -999, max: 999, minLen: 2, maxLen: CAP },
+  code: exampleCode(defaultInput),
+  codeForInput: (lang, input) => exampleCode(input)[lang],
   doc: [
     {
       heading: '核心思想',
@@ -72,9 +82,10 @@ export const sequenceInsert: AlgorithmMeta = {
   ],
   generate: (input) => {
     const steps: TraceStep[] = [];
-    const raw = input.length >= 2 ? input : [20, 60, 30, 10, 40, 99];
-    const value = raw[raw.length - 1];
-    const initial = raw.slice(0, -1).slice(0, CAP - 1);
+    const { values, position } = decodeArrayPositionInput(input.length >= 2 ? input : defaultInput);
+    const value = values[values.length - 1];
+    const initial = values.slice(0, -1);
+    const index = position - 1;
     const L: (number | null)[] = Array.from({ length: CAP }, () => null);
     initial.forEach((v, i) => { L[i] = v; });
     let len = initial.length;
@@ -91,24 +102,24 @@ export const sequenceInsert: AlgorithmMeta = {
       steps.push(makeStep(
         k++, anchor, phase,
         arrayScene(cells(L, CAP, states, labels), [], CAP, `容量 ${CAP} · 表长 ${len}`),
-        { 位序: 3, 下标: POS, 表长: len, 插入值: value, ...extra },
+        { 位序: position, 下标: index, 表长: len, 插入值: value, ...extra },
         caption,
       ));
     };
 
-    push('check', '合法性检查', `检查位序 3 是否落在 [1, ${len + 1}] 内：合法，允许插入。`, { [POS]: 'compare' }, { [POS]: 'pos' });
+    push('check', '合法性检查', `位序 ${position} 在 [1, ${len + 1}] 内，允许插入。`, { [index]: 'compare' }, { [index]: 'pos' });
     push('full', '容量检查', `表长 ${len} < 容量 ${CAP}，仍有空闲格子。`, {}, {}, {});
-    for (let j = len - 1; j >= POS; j--) {
+    for (let j = len - 1; j >= index; j--) {
       push('shiftHead', '元素后移', `从最后一个元素 L[${j}] = ${initial[j]} 开始倒序搬移。`, { [j]: 'active' }, { [j]: 'j' }, { j });
       L[j + 1] = L[j];
       L[j] = null;
       push('shift', '元素后移', `执行 L[${j + 1}] = L[${j}]，元素 ${initial[j]} 后移一格。`, { [j + 1]: 'insert' }, { [j + 1]: 'j+1' }, { j });
     }
-    L[POS] = value;
-    push('assign', '写入新值', `空出的下标 ${POS} 写入新值 ${value}。`, { [POS]: 'insert' }, { [POS]: 'pos' });
+    L[index] = value;
+    push('assign', '写入新值', `空出的下标 ${index} 写入新值 ${value}。`, { [index]: 'insert' }, { [index]: 'pos' });
     len += 1;
-    push('len', '更新表长', `表长由 ${len - 1} 变为 ${len}，新元素正式生效。`, { [POS]: 'found' });
-    push('done', '完成', `插入结束，共移动 ${initial.length - POS} 个元素。`, { [POS]: 'found' });
+    push('len', '更新表长', `表长由 ${len - 1} 变为 ${len}，新元素正式生效。`, { [index]: 'found' });
+    push('done', '完成', `插入结束，共移动 ${initial.length - index} 个元素。`, { [index]: 'found' });
     return steps;
   },
 };

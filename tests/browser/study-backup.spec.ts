@@ -20,8 +20,8 @@ test('演示和练习分别记录，JSON 备份可合并并继续上次演示', 
   const file = await pending;
   const backup = await readFile(await file.path());
   expect(JSON.parse(backup.toString())).toMatchObject({
-    version: 1, watched: ['recursion/factorial'], passed: ['stack/seq-stack'],
-    lastLesson: { slug: 'recursion/factorial', input: [8] }, mistakes: [{ slug: 'stack/seq-stack', choice: '0' }],
+    version: 2, watched: ['recursion/factorial'], passed: ['stack/seq-stack'],
+    lastLesson: { slug: 'recursion/factorial', input: [8] }, mistakes: [{ slug: 'stack/seq-stack', choice: '0', updatedAt: expect.any(Number) }],
   });
   await page.evaluate(() => {
     for (const key of Object.keys(localStorage)) if (key.startsWith('dsv-mistake:')) localStorage.removeItem(key);
@@ -32,7 +32,7 @@ test('演示和练习分别记录，JSON 备份可合并并继续上次演示', 
   await page.reload();
 
   const input = page.getByLabel('学习记录文件');
-  await input.setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from('{"version":2}') });
+  await input.setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from('{"version":99}') });
   await expect(page.getByRole('status')).toContainText('无法导入');
   await expect(page.getByRole('button', { name: '继续上次学习' })).toHaveCount(0);
   await input.setInputFiles({ name: file.suggestedFilename(), mimeType: 'application/json', buffer: backup });
@@ -50,6 +50,48 @@ test('演示和练习分别记录，JSON 备份可合并并继续上次演示', 
   await expect(page.getByRole('status')).toContainText('学习记录已合并');
   await page.goto('/#/lab');
   await expect(page.getByRole('button', { name: '只练错题（0）' })).toBeVisible();
+});
+
+test('备份在两个独立浏览器环境按更新时间同步解决和再次答错', async ({ page, browser, baseURL }) => {
+  await page.goto('/#/lab');
+  const second = await browser.newPage();
+  const backup = async (source: typeof page) => {
+    await source.goto(new URL('/#/map', baseURL).href);
+    const pending = source.waitForEvent('download');
+    await source.getByRole('button', { name: '导出学习记录' }).click();
+    return readFile(await (await pending).path());
+  };
+  const restore = async (target: typeof page, data: Buffer) => {
+    await target.goto(new URL('/#/map', baseURL).href);
+    await target.getByLabel('学习记录文件').setInputFiles({ name: 'study.json', mimeType: 'application/json', buffer: data });
+    await expect(target.getByRole('status')).toContainText('学习记录已合并');
+    await target.goto(new URL('/#/lab', baseURL).href);
+  };
+  try {
+    await page.locator('.lab-options').getByRole('button', { name: '0', exact: true }).click();
+    const wrong = await backup(page);
+    const legacy = JSON.parse(wrong.toString());
+    legacy.version = 1;
+    for (const record of legacy.mistakes) delete record.updatedAt;
+
+    await restore(second, Buffer.from(JSON.stringify(legacy)));
+    await second.getByRole('button', { name: '只练错题（1）' }).click();
+    await second.locator('.lab-options').getByRole('button', { name: '999', exact: true }).click();
+    const resolved = await backup(second);
+    expect(JSON.parse(resolved.toString()).mistakes).toEqual([
+      expect.objectContaining({ choice: null, updatedAt: expect.any(Number) }),
+    ]);
+
+    await restore(page, resolved);
+    await expect(page.getByRole('button', { name: '只练错题（0）' })).toBeVisible();
+    await restore(page, wrong);
+    await expect(page.getByRole('button', { name: '只练错题（0）' })).toBeVisible();
+
+    await page.locator('.lab-options').getByRole('button', { name: '-123', exact: true }).click();
+    const wrongAgain = await backup(page);
+    await restore(second, wrongAgain);
+    await expect(second.getByRole('button', { name: '只练错题（1）' })).toBeVisible();
+  } finally { await second.close(); }
 });
 
 test('改过题干的旧本地错题仍可复习', async ({ page }) => {

@@ -751,6 +751,9 @@ function LinearSvg({ scene }: { scene: Scene }) {
         const pointers = (scene.pointers ?? []).filter((p) => p.index === idx);
         const labels = matrix ? [] : pointers.filter((p) => p.axis !== 'row').map((p) => p.label);
         const rowPointer = pointers.find((p) => p.axis === 'row');
+        const value = t(n.value);
+        // Leave room inside the cell for longer monospace labels such as "Sentinel".
+        const valueFontSize = isList && value ? Math.min(15, (cw - 12) / (value.length * 0.65)) : 15;
         return (
           <g key={n.id} style={{
             transform: `translate(${x}px, ${y}px)`,
@@ -770,8 +773,8 @@ function LinearSvg({ scene }: { scene: Scene }) {
               <path d={`M-24 ${cellHeight / 2} H-4`} fill="none" stroke="#534AB7" strokeWidth="1.5" markerEnd={arrow} />
             </g>}
             <rect x={0} y={0} width={cw} height={cellHeight} rx={8} strokeWidth="1" style={{ fill: col.fill, stroke: col.stroke, transition: 'fill 200ms ease, stroke 200ms ease' }} />
-            <text x={cw / 2} y={cellHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize="15" fontFamily="monospace" fill="#2C2C2A">
-              {t(n.value)}
+            <text x={cw / 2} y={cellHeight / 2} textAnchor="middle" dominantBaseline="central" fontSize={valueFontSize} fontFamily="monospace" fill="#2C2C2A">
+              {value}
             </text>
             {showIndex && (
               <text x={cw / 2} y={60} textAnchor="middle" fontSize="11" fill="#5F5E5A" fontFamily="monospace">

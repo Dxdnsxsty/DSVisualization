@@ -3,7 +3,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlayer } from '../engine/player';
 import { tokenize } from '../engine/highlight';
-import { decodeMatchInput } from '../engine/input';
+import { arrayPositionLabel, decodeArrayPositionInput, decodeMatchInput } from '../engine/input';
 import { decodeCustomGraph, formatTreeInput } from '../engine/structure-input';
 import type { AlgorithmMeta, TraceStep } from '../engine/types';
 
@@ -11,8 +11,10 @@ const LANG_LABEL: Record<string, string> = { cpp: 'C++', python: 'Python' };
 
 export function CodePane({ algo }: { algo: AlgorithmMeta }) {
   const t = useTranslate();
-  const p = usePlayer(useShallow(({ lang, input, setLang, jumpToAnchor }) => ({ lang, input, setLang, jumpToAnchor })));
-  const lines = algo.code[p.lang] ?? algo.code.cpp;
+  const p = usePlayer(useShallow(({ slug, lang, input, setLang, jumpToAnchor }) =>
+    ({ lang, input: slug === algo.slug ? input : algo.defaultInput, setLang, jumpToAnchor })));
+  const lines = useMemo(() => algo.codeForInput?.(p.lang, p.input) ?? algo.code[p.lang] ?? algo.code.cpp,
+    [algo, p.lang, p.input]);
   const activeAnchor = usePlayer((state) => state.trace[state.step]?.anchor);
   const tokenLines = useMemo(() => lines.map((line) => tokenize(
     line.text.replace(/"((?:\\.|[^"\\])*)"/g, (literal, message: string) => {
@@ -101,6 +103,11 @@ export function CodePane({ algo }: { algo: AlgorithmMeta }) {
     const [main, pattern] = algo.input?.format === 'string-match' ? decodeMatchInput(input) : [];
     const graph = algo.customGraph ? decodeCustomGraph(input) : undefined;
     if (main !== undefined) return `主串 ${main}，模式串 ${pattern}`;
+    const positionLabel = arrayPositionLabel(algo.input?.format);
+    if (positionLabel) {
+      const { values, position } = decodeArrayPositionInput(input);
+      return `${values.join(', ')} · ${t(positionLabel)} ${position}`;
+    }
     if (algo.input?.format === 'tree-level') return formatTreeInput(input);
     if (graph) {
       const weighted = algo.customGraph === 'weighted' || algo.customGraph === 'weighted-signed';

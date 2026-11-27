@@ -2,6 +2,89 @@ import { expect, test } from '@playwright/test';
 import { algorithmReplayPath } from '../../src/engine/router';
 import { parseCustomGraph, parseTreeInput } from '../../src/engine/structure-input';
 
+test('顺序表可指定插入位置，分享后保留位置和动画步骤', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: () => Promise.reject(new Error('Clipboard blocked')) },
+    });
+  });
+  await page.goto('/#/algo/array/sequence-insert?input=20,60,30,99&step=0');
+  const position = page.getByLabel('插入位置', { exact: true });
+  await expect(position).toHaveValue('3');
+  await page.getByLabel('自定义数据', { exact: true }).fill('10, 20, 30, 99');
+  const generate = page.getByRole('button', { name: '生成动画', exact: true });
+  const controls = page.locator('.col-center > .controls-panel');
+  const caption = controls.locator('.caption-text');
+  const end = controls.getByTitle('跳到结尾 (End)');
+
+  await position.fill('1');
+  await generate.click();
+  await end.click();
+  await expect(caption).toHaveText('插入结束，共移动 3 个元素。');
+  await position.fill('5');
+  await generate.click();
+  await expect(page.getByRole('alert')).toHaveText('插入位置须为 1–4 的整数');
+  await expect(caption).toHaveText('插入结束，共移动 3 个元素。');
+
+  await position.fill('4');
+  await generate.click();
+  await end.click();
+  await expect(caption).toHaveText('插入结束，共移动 0 个元素。');
+  await page.getByRole('button', { name: '复制演示链接', exact: true }).click();
+  const url = await page.getByRole('textbox', { name: '演示链接', exact: true }).inputValue();
+  await page.goto(url);
+  await page.reload();
+  await expect(position).toHaveValue('4');
+  await expect(caption).toHaveText('插入结束，共移动 0 个元素。');
+
+  const tabs = page.locator('.mobile-tabs');
+  if (await tabs.isVisible()) await tabs.getByRole('button', { name: '代码', exact: true }).click();
+  await expect(page.locator('.code-lines')).toContainText('ListInsert(L, length, 4, 99);');
+  await page.getByRole('button', { name: 'Python', exact: true }).click();
+  await expect(page.locator('.code-lines')).toContainText('list_insert(L, 3, 4, 99)');
+});
+
+test('顺序表可指定删除位置，动画和代码在分享回放中保持一致', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: () => Promise.reject(new Error('Clipboard blocked')) },
+    });
+  });
+  await page.goto('/#/algo/array/sequence-delete?input=10,20,30,40&step=0');
+  const position = page.getByLabel('删除位置', { exact: true });
+  const generate = page.getByRole('button', { name: '生成动画', exact: true });
+  const controls = page.locator('.col-center > .controls-panel');
+  const caption = controls.locator('.caption-text');
+  const end = controls.getByTitle('跳到结尾 (End)');
+  await expect(position).toHaveValue('3');
+
+  await position.fill('1');
+  await generate.click();
+  await end.click();
+  await expect(caption).toHaveText('删除结束，共移动 3 个元素，被删值为 10。');
+  await position.fill('5');
+  await generate.click();
+  await expect(page.getByRole('alert')).toHaveText('删除位置须为 1–4 的整数');
+  await expect(caption).toHaveText('删除结束，共移动 3 个元素，被删值为 10。');
+
+  await position.fill('4');
+  await generate.click();
+  await end.click();
+  await expect(caption).toHaveText('删除结束，共移动 0 个元素，被删值为 40。');
+  await page.getByRole('button', { name: '复制演示链接', exact: true }).click();
+  const url = await page.getByRole('textbox', { name: '演示链接', exact: true }).inputValue();
+  await page.goto(url);
+  await page.reload();
+  await expect(position).toHaveValue('4');
+  await expect(caption).toHaveText('删除结束，共移动 0 个元素，被删值为 40。');
+
+  const tabs = page.locator('.mobile-tabs');
+  if (await tabs.isVisible()) await tabs.getByRole('button', { name: '代码', exact: true }).click();
+  await expect(page.locator('.code-lines')).toContainText('ListDelete(L, length, 4, v);');
+  await page.getByRole('button', { name: 'Python', exact: true }).click();
+  await expect(page.locator('.code-lines')).toContainText('print(list_delete(L, 4, 4), L[:3])');
+});
+
 test('对比页的单独学习保留已应用输入和本侧步骤', async ({ page }) => {
   await page.goto('/#/compare');
   await page.getByLabel('共同输入').fill('8, 3, 1');
